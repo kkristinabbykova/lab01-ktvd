@@ -47,7 +47,13 @@ def fonts_block():
     f = pd.read_csv(ROOT / "data" / "fonts.csv")
     f["category"] = f["category"].fillna("")
     f = f[~f.no_lowercase]
-    pts = [{"f": r.family, "c": r.category, "x": round(r.x_height, 4), "s": round(r.stem, 4)} for r in f.itertuples()]
+    import csv
+    src = {r["family_folder"].replace("_", " "): r["source"]
+           for r in csv.DictReader(open(ROOT / "data" / "font_categories.csv", encoding="utf-8"))}
+    num = lambda v, d=4: None if pd.isna(v) else round(float(v), d)   # noqa: E731
+    pts = [{"f": r.family, "c": r.category, "x": num(r.x_height), "s": num(r.stem), "cap": num(r.cap_height),
+            "ct": num(r.contrast, 2), "w": num(r.width_o, 3), "g": "Google Fonts" in src.get(r.family, "Google Fonts")}
+           for r in f.itertuples()]
     med = f.groupby("category").x_height.median().round(3).to_dict()
     rho = stats.spearmanr(f.x_height, f.stem)[0]
     stems = sorted(round(float(v), 4) for v in f.stem)
@@ -92,6 +98,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&display=swap" rel="stylesheet">
 <style>
 :root{
   --paper:#f6f7f5; --ink:#1a1d24; --muted:#5c6170; --rule:#dcdfd8;
@@ -160,6 +167,22 @@ select{padding:.4rem .5rem;border:1px solid #c9cdc5;border-radius:6px;background
 footer.wrap{padding-top:3rem;padding-bottom:4rem;border-top:1px solid var(--rule);color:var(--muted);font-size:.95rem}
 footer p{max-width:var(--measure)}
 
+.specimen{padding:1.2rem 1.4rem;overflow:hidden}
+#play .controls label{min-width:11rem;flex:1 1 11rem}
+#play .controls label .val{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+#play .controls input[type=range]{width:100%}
+#flex{font-family:"Roboto Flex","Golos Text",system-ui,sans-serif;line-height:1.05;outline:none;word-break:break-word;min-height:1.2em}
+#flex:focus-visible{box-shadow:0 0 0 3px var(--orange);border-radius:4px}
+input[type=text]{font:inherit;color:var(--ink);padding:.4rem .6rem;border:1px solid #c9cdc5;border-radius:6px;background:#fff}
+.cmp-row{background:#fff;border-radius:8px;padding:.8rem 1rem 1rem;margin:0 0 1rem}
+.cmp-row svg{display:block;width:100%;height:auto}
+.cmp-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:.3rem}
+.cmp-head b{font-weight:650}
+.bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem 1.4rem;margin-top:.6rem}
+.bar{font-size:.85rem;color:var(--muted)}
+.bar .track{position:relative;height:8px;border-radius:4px;background:#eceee9;margin-top:.25rem}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.bar .med{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
 @media (max-width:760px){.lab{grid-template-columns:1fr} th,td{padding-right:.6rem;font-size:.95rem}}
 @media (prefers-reduced-motion:reduce){h1 span.l{transition:none}}
 </style>
@@ -198,6 +221,39 @@ footer p{max-width:var(--measure)}
     <div class="legend" id="flegend"></div>
   </div>
   <p class="note">Наведите на точку или выберите её клавишей Tab, чтобы увидеть название шрифта. Исследование: __L_FONTS__.</p>
+</section>
+
+<section class="wrap" id="play">
+  <h2>Попробуй сам</h2>
+  <h3>Толщина и ширина</h3>
+  <div class="text">
+  <p>Этот текст набран вариативным шрифтом Roboto Flex: у него толщину штриха и ширину букв можно менять плавно.
+  Подвигай ползунки и посмотри, как меняется характер текста. Текст можно исправить — просто нажми на него.</p>
+  </div>
+  <div class="controls">
+    <label><span>Толщина (вес): <output id="wghtOut" class="val">400</output></span>
+      <input id="wght" type="range" min="100" max="1000" step="10" value="400"></label>
+    <label><span>Ширина: <output id="wdthOut" class="val">100</output><span class="val">&nbsp;%</span></span>
+      <input id="wdth" type="range" min="25" max="151" step="1" value="100"></label>
+    <label><span>Кегль: <output id="sizeOut" class="val">72</output><span class="val">&nbsp;px</span></span>
+      <input id="size" type="range" min="16" max="160" step="2" value="72"></label>
+    <button id="resetPlay" type="button">Сбросить</button>
+  </div>
+  <div class="chart specimen"><div id="flex" contenteditable="true" spellcheck="false" aria-label="Образец текста, можно редактировать">Шрифт как случайная величина</div></div>
+  <p class="note" id="flexNote"></p>
+
+  <h3>Сравнение шрифтов</h3>
+  <div class="text">
+  <p>Выбери до трёх шрифтов из датасета и введи любой текст. Все строки набраны одним кеглем: сразу видно, у какого
+  шрифта строчные выше и штрих толще. Пунктир — наши измерения: высота строчных (x-height) и прописных.</p>
+  </div>
+  <div class="controls">
+    <label>Шрифт 1 <select class="fpick" data-i="0"></select></label>
+    <label>Шрифт 2 <select class="fpick" data-i="1"></select></label>
+    <label>Шрифт 3 <select class="fpick" data-i="2"></select></label>
+    <label style="flex:1;min-width:14rem">Текст <input id="cmpText" type="text" value="Hxlno шрифт" maxlength="40"></label>
+  </div>
+  <div id="cmp"></div>
 </section>
 
 <section class="wrap" id="rng">
@@ -391,6 +447,83 @@ baseIn.addEventListener("change", run);
 methodIn.addEventListener("change", run);
 document.getElementById("go").addEventListener("click", run);
 run();
+
+/* --- попробуй сам: толщина и ширина (Roboto Flex) --- */
+const flex = document.getElementById("flex"), flexNote = document.getElementById("flexNote");
+const wght = document.getElementById("wght"), wdth = document.getElementById("wdth"), size = document.getElementById("size");
+function updFlex() {
+  flex.style.fontVariationSettings = `"wght" ${wght.value}, "wdth" ${wdth.value}`;
+  flex.style.fontWeight = wght.value;
+  flex.style.fontStretch = wdth.value + "%";
+  flex.style.fontSize = size.value + "px";
+  document.getElementById("wghtOut").textContent = wght.value;
+  document.getElementById("wdthOut").textContent = wdth.value;
+  document.getElementById("sizeOut").textContent = size.value;
+  const st = D.fonts.stems, lo = st[0], hi = st[st.length - 1];
+  flexNote.textContent = `Для сравнения: у шрифтов из датасета (начертание Regular, вес 400) толщина штриха от ${nf(lo)} до ${nf(hi)} кегля, ` +
+    `медиана ${nf(st[Math.floor(st.length / 2)])}. При кегле ${size.value} px это от ${(lo * size.value).toFixed(1).replace(".", ",")} до ${(hi * size.value).toFixed(1).replace(".", ",")} px.`;
+}
+[wght, wdth, size].forEach(el => el.addEventListener("input", updFlex));
+document.getElementById("resetPlay").addEventListener("click", () => { wght.value = 400; wdth.value = 100; size.value = 72; updFlex(); });
+updFlex();
+
+/* --- попробуй сам: сравнение шрифтов --- */
+const GF = D.fonts.pts.filter(p => p.g && p.cap).sort((a, b) => a.f.localeCompare(b.f));
+const picks = [...document.querySelectorAll(".fpick")], cmpText = document.getElementById("cmpText"), cmp = document.getElementById("cmp");
+const loaded = new Set();
+function loadFont(name) {
+  if (loaded.has(name)) return Promise.resolve();
+  loaded.add(name);
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=" + name.replace(/ /g, "+") + "&display=swap";
+  document.head.appendChild(l);
+  return new Promise(res => { l.onload = () => document.fonts.load(`64px "${name}"`).then(res, res); l.onerror = res; setTimeout(res, 4000); });
+}
+const DEF = ["Inter", "Playfair", "Indie Flower"];
+const range = key => { const v = GF.map(p => p[key]).filter(x => x != null).sort((a, b) => a - b);
+  return {lo: v[0], hi: v[v.length - 1], med: v[Math.floor(v.length / 2)]}; };
+const RG = {x: range("x"), s: range("s"), ct: range("ct"), w: range("w")};
+const LAB = {x: "x-height", s: "толщина штриха", ct: "контраст «o»", w: "ширина «o» / x-height"};
+picks.forEach((sel, i) => {
+  sel.innerHTML = GF.map(p => `<option value="${p.f}">${p.f} (${(CAT[p.c] || [p.c])[0]})</option>`).join("");
+  const want = GF.find(p => p.f === DEF[i]) || GF[i * 7 % GF.length];
+  sel.value = want.f;
+  sel.addEventListener("change", renderCmp);
+});
+cmpText.addEventListener("input", renderCmp);
+function bar(p, key) {
+  const r = RG[key], v = p[key];
+  if (v == null) return `<div class="bar">${LAB[key]}: нет данных</div>`;
+  const k = x => Math.max(0, Math.min(1, (x - r.lo) / (r.hi - r.lo))) * 100;
+  return `<div class="bar">${LAB[key]}: <b style="color:var(--ink)">${nf(v, key === "ct" ? 2 : 3)}</b>
+    <div class="track"><div class="fill" style="width:${k(v)}%;background:${(CAT[p.c] || ["", "#999"])[1]}"></div>
+    <div class="med" style="left:${k(r.med)}%" title="медиана датасета"></div></div></div>`;
+}
+async function renderCmp() {
+  const txt = (cmpText.value || "Hxlno").replace(/[<&>"]/g, "");
+  const chosen = picks.map(s => GF.find(p => p.f === s.value)).filter(Boolean);
+  await Promise.all(chosen.map(p => loadFont(p.f)));
+  cmp.innerHTML = chosen.map((p, i) => `<div class="cmp-row"><div class="cmp-head"><b>${p.f}</b>
+      <span class="note"><span style="color:#eb6834">- - x-height ${nf(p.x)}</span>&nbsp;&nbsp;
+      <span style="color:#1baf7a">- - прописные ${nf(p.cap)}</span>&nbsp;&nbsp;${(CAT[p.c] || [p.c])[0]}</span></div>
+      <svg id="cs${i}" viewBox="0 0 640 110" role="img" aria-label="${txt} шрифтом ${p.f}"></svg>
+      <div class="bars">${["x", "s", "ct", "w"].map(k => bar(p, k)).join("")}</div></div>`).join("") +
+    `<p class="note">Чёрная риска на полоске — медиана по всем шрифтам датасета.</p>`;
+  // кегль подбирается по реальной ширине набранного текста: строка всегда помещается
+  chosen.forEach((p, i) => {
+    const svg = document.getElementById("cs" + i);
+    const t = el("text", {x: 8, y: 0, "font-family": `'${p.f}', serif`, "font-size": 72, fill: "#1a1d24"});
+    t.textContent = txt; svg.append(t);
+    const w72 = t.getComputedTextLength() || 600;
+    const FS = Math.max(14, Math.min(72, 72 * 620 / w72)), base = Math.round(FS * Math.max(1, p.cap) + 14), H = base + 16;
+    svg.setAttribute("viewBox", `0 0 640 ${H}`);
+    t.setAttribute("font-size", FS.toFixed(1)); t.setAttribute("y", base);
+    [[base, "#5c6170", null], [base - p.x * FS, "#eb6834", "5 4"], [base - p.cap * FS, "#1baf7a", "5 4"]].forEach(([y, c, d]) => {
+      const ln = el("line", {x1: 0, x2: 640, y1: y, y2: y, stroke: c}); if (d) ln.setAttribute("stroke-dasharray", d); svg.insertBefore(ln, t); });
+  });
+}
+renderCmp();
 
 /* --- точечный график шрифтов --- */
 const sc = document.getElementById("scatter"), tip = document.getElementById("tip");
