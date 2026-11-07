@@ -88,7 +88,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lab01 КТвД: случайность в букве</title>
+<title>Lab01 КТвД: шрифт как случайная величина</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap" rel="stylesheet">
@@ -166,7 +166,7 @@ footer p{max-width:var(--measure)}
 </head>
 <body>
 <header class="wrap">
-  <h1 id="title" aria-label="Случайность в букве"><span class="w">Случайность</span><span class="w">в букве</span></h1>
+  <h1 id="title" aria-label="Шрифт как случайная величина"><span class="w">Шрифт как</span><span class="w">случайная</span><span class="w">величина</span></h1>
   <p class="lede text">Доп. задание КТвД к лабораторной по прикладной статистике: собственный датасет шрифтов
   с двумя случайными величинами и интерактивный датчик случайных чисел.
   Толщина каждой буквы в заголовке — случайная величина: она взята из измеренной толщины штриха шрифтов из датасета.</p>
