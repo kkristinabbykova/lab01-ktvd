@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+__marimo__/
+# шрифты целиком не храним: большие; измерения в data/fonts.csv
+fonts/
+downloads/
+# собирается на GitHub Actions
+docs/datchik/

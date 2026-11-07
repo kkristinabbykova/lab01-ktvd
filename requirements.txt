@@ -1,0 +1,7 @@
+numpy>=2.0
+scipy>=1.13
+pandas>=2.2
+matplotlib>=3.8
+fonttools>=4.50
+marimo>=0.10
+pytest>=8.0
