@@ -59,7 +59,7 @@ td.num{text-align:right}
 .controls{display:flex;flex-wrap:wrap;gap:1rem 1.4rem;align-items:end;margin:1.2rem 0 .4rem}
 label{display:flex;flex-direction:column;gap:.3rem;font-size:.9rem;color:var(--muted)}
 select,input[type=range]{font:inherit;color:var(--ink)}
-select{padding:.4rem .5rem;border:1px solid #c9cdc5;border-radius:6px;background:#fff}
+select:not(.fancy){padding:.4rem .5rem;border:1px solid #c9cdc5;border-radius:6px;background:#fff}
 .chart{background:#fff;border-radius:8px;padding:.6rem}
 .chart svg,.chart canvas{display:block;width:100%;height:auto}
 .readout{font-variant-numeric:tabular-nums;margin-top:.7rem;font-size:.95rem}
@@ -77,12 +77,23 @@ footer.wrap{padding-top:3rem;padding-bottom:4rem;border-top:1px solid var(--rule
 footer p{max-width:var(--measure)}
 
 .specimen{padding:1.2rem 1.4rem;overflow:hidden}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;background:#e6e8e3;border-radius:999px;padding:3px}
+.seg button{background:transparent;color:var(--ink);font-weight:500;font-size:.92rem;padding:.42rem .95rem;border-radius:999px;transition:background .15s}
+.seg button:hover{background:#f2f3f0}
+.seg button[aria-checked="true"]{background:#fff;font-weight:650;box-shadow:0 1px 3px rgba(26,29,36,.18)}
+.fancy{appearance:none;-webkit-appearance:none;font:inherit;font-size:.95rem;color:var(--ink);background:#fff
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%231a1d24' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right .9rem center;
+  border:1px solid #c9cdc5;border-radius:999px;padding:.5rem 2.2rem .5rem .95rem;min-width:12rem;cursor:pointer}
+.fancy:hover{border-color:#9aa0a8}
 #play .controls label{min-width:11rem;flex:1 1 11rem}
 #play .controls label .val{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
 #play .controls input[type=range]{width:100%}
 #flex{font-family:"Roboto Flex","Golos Text",system-ui,sans-serif;line-height:1.05;outline:none;word-break:break-word;min-height:1.2em}
 #flex:focus-visible{box-shadow:0 0 0 3px var(--orange);border-radius:4px}
-input[type=text]{font:inherit;color:var(--ink);padding:.4rem .6rem;border:1px solid #c9cdc5;border-radius:6px;background:#fff}
+input[type=text]{font:inherit;font-size:.95rem;color:var(--ink);padding:.5rem .95rem;border:1px solid #c9cdc5;border-radius:999px;background:#fff}
+input[type=text]:hover{border-color:#9aa0a8}
+.controls label .val{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
 .cmp-row{background:#fff;border-radius:8px;padding:.8rem 1rem 1rem;margin:0 0 1rem}
 .cmp-row svg{display:block;width:100%;height:auto}
 .cmp-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:.3rem}
@@ -157,9 +168,9 @@ input[type=text]{font:inherit;color:var(--ink);padding:.4rem .6rem;border:1px so
   шрифта строчные выше и штрих толще. Пунктир — наши измерения: высота строчных (x-height) и прописных.</p>
   </div>
   <div class="controls">
-    <label>Шрифт 1 <select class="fpick" data-i="0"></select></label>
-    <label>Шрифт 2 <select class="fpick" data-i="1"></select></label>
-    <label>Шрифт 3 <select class="fpick" data-i="2"></select></label>
+    <label>Шрифт 1 <select class="fpick fancy" data-i="0"></select></label>
+    <label>Шрифт 2 <select class="fpick fancy" data-i="1"></select></label>
+    <label>Шрифт 3 <select class="fpick fancy" data-i="2"></select></label>
     <label style="flex:1;min-width:14rem">Текст <input id="cmpText" type="text" value="Hxlno шрифт" maxlength="40"></label>
   </div>
   <div id="cmp"></div>
@@ -174,21 +185,23 @@ input[type=text]{font:inherit;color:var(--ink);padding:.4rem .6rem;border:1px so
   Для сравнения можно включить квантильное преобразование по самим данным.</p>
   </div>
   <div class="controls">
-    <label>Метод
-      <select id="method">
-        <option value="polar">Полярный метод (спринт 2)</option>
-        <option value="quantile">Квантильное преобразование</option>
+    <label><span id="methodLab">Метод</span>
+      <span class="seg" data-for="method" role="radiogroup" aria-labelledby="methodLab"></span>
+      <select id="method" class="sr" tabindex="-1" aria-hidden="true">
+        <option value="polar">Полярный (спринт 2)</option>
+        <option value="quantile">Квантильный</option>
       </select>
     </label>
-    <label>Базовый датчик
-      <select id="base">
-        <option value="math">Math.random (xorshift128+)</option>
-        <option value="mmix">ЛКГ, константы MMIX (Кнут)</option>
-        <option value="randu">RANDU, IBM 1960-х</option>
+    <label><span id="baseLab">Базовый датчик</span>
+      <span class="seg" data-for="base" role="radiogroup" aria-labelledby="baseLab"></span>
+      <select id="base" class="sr" tabindex="-1" aria-hidden="true">
+        <option value="math">Math.random</option>
+        <option value="mmix">ЛКГ MMIX</option>
+        <option value="randu">RANDU</option>
       </select>
     </label>
-    <label>Сколько чисел: <output id="nout">4900</output>
-      <input id="n" type="range" min="100" max="20000" step="100" value="4900">
+    <label style="min-width:12rem"><span>Сколько чисел: <output id="nout" class="val">4900</output></span>
+      <input id="n" type="range" min="100" max="20000" step="100" value="4900" style="width:100%">
     </label>
     <button id="go" type="button">Сгенерировать заново</button>
   </div>
@@ -357,6 +370,26 @@ methodIn.addEventListener("change", run);
 document.getElementById("go").addEventListener("click", run);
 run();
 
+/* --- переключатели-«таблетки» вместо выпадающих списков с 2–3 вариантами --- */
+document.querySelectorAll(".seg").forEach(seg => {
+  const sel = document.getElementById(seg.dataset.for);
+  const btns = [...sel.options].map(o => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = o.textContent; b.setAttribute("role", "radio"); b.dataset.v = o.value;
+    seg.appendChild(b); return b; });
+  const sync = () => btns.forEach(b => { const on = b.dataset.v === sel.value;
+    b.setAttribute("aria-checked", on); b.tabIndex = on ? 0 : -1; });
+  const pick = b => { sel.value = b.dataset.v; sync(); sel.dispatchEvent(new Event("change")); };
+  btns.forEach((b, i) => {
+    b.addEventListener("click", () => pick(b));
+    b.addEventListener("keydown", e => {
+      const d = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1}[e.key];
+      if (d) { e.preventDefault(); const n = btns[(i + d + btns.length) % btns.length]; pick(n); n.focus(); }
+    });
+  });
+  sync();
+});
+
 /* --- попробуй сам: толщина и ширина (Roboto Flex) --- */
 const flex = document.getElementById("flex"), flexNote = document.getElementById("flexNote");
 const wght = document.getElementById("wght"), wdth = document.getElementById("wdth"), size = document.getElementById("size");
@@ -395,7 +428,8 @@ const range = key => { const v = GF.map(p => p[key]).filter(x => x != null).sort
 const RG = {x: range("x"), s: range("s"), ct: range("ct"), w: range("w")};
 const LAB = {x: "x-height", s: "толщина штриха", ct: "контраст «o»", w: "ширина «o» / x-height"};
 picks.forEach((sel, i) => {
-  sel.innerHTML = GF.map(p => `<option value="${p.f}">${p.f} (${(CAT[p.c] || [p.c])[0]})</option>`).join("");
+  sel.innerHTML = Object.entries(CAT).map(([k, [nm]]) => `<optgroup label="${nm}">` +
+    GF.filter(p => p.c === k).map(p => `<option value="${p.f}">${p.f}</option>`).join("") + "</optgroup>").join("");
   const want = GF.find(p => p.f === DEF[i]) || GF[i * 7 % GF.length];
   sel.value = want.f;
   sel.addEventListener("change", renderCmp);
