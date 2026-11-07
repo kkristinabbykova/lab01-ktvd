@@ -7,7 +7,8 @@
 лежит в общем репозитории команды. Отсюда используются её данные Wine Quality (для датчика) и её
 пакет `labstat` (статистика и стиль графиков), чтобы обе части выглядели и считались одинаково.
 
-**Сайт:** `https://<логин>.github.io/<репозиторий>/` (появится после шагов ниже).
+**Сайт:** https://kkristinabbykova.github.io/lab01-ktvd/  
+**Репозиторий:** https://github.com/kkristinabbykova/lab01-ktvd
 
 ## Что здесь
 
@@ -58,7 +59,7 @@ python tools/build_site.py       # собрать сайт в docs/ (с marimo-�
    ```bash
    git config user.email "ПОЧТА_ОТ_GITHUB"
    git filter-branch -f --env-filter 'export GIT_AUTHOR_EMAIL="ПОЧТА_ОТ_GITHUB"; export GIT_COMMITTER_EMAIL="ПОЧТА_ОТ_GITHUB"' -- --all
-   git remote add origin https://github.com/ЛОГИН/lab01-ktvd.git
+   git remote add origin https://github.com/kkristinabbykova/lab01-ktvd.git
    git push -u origin main
    ```
 
