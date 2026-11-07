@@ -164,7 +164,7 @@ class FontMeasure:
     adv_mean: float
     x_to_cap: float
     os2_x_height: float
-    no_lowercase: bool   # строчные заменены капителью/прописными: x-height не настоящий
+    no_lowercase: bool   # строчные заменены капителью/прописными (l не выше x): x-height не настоящий
 
 
 def _glyph(font: TTFont, ch: str):
@@ -244,7 +244,10 @@ def measure_font(font: TTFont, *, file: str = "", category: str = "") -> FontMea
         adv_mean=sum(advs) / len(advs) / upm,
         x_to_cap=xh / bh[3],
         os2_x_height=(os2_xh or 0) / upm,
-        no_lowercase=bool(xh / bh[3] > 0.9 or re.search(r"\bSC$|Small ?Caps|Unicase", _name(font, 16, 1) or _name(font, 1))),
+        # нет настоящих строчных: x почти как H, или у «l» нет выносного элемента (l не выше x — капитель,
+        # прописные формы на месте строчных), или «SC» в имени семейства
+        no_lowercase=bool(xh / bh[3] > 0.9 or bl[3] / xh < 1.15
+                          or re.search(r"\bSC$|Small ?Caps|Unicase", _name(font, 16, 1) or _name(font, 1))),
     )
 
 

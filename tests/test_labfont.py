@@ -25,7 +25,7 @@ def rect(pen, x0, y0, x1, y1, clockwise=True):
     pen.closePath()
 
 
-def make_font(stem=100, xh=500, cap=700, o_side=120, o_top=60, family="Test Sans", weight=400, italic=False):
+def make_font(stem=100, xh=500, cap=700, o_side=120, o_top=60, family="Test Sans", weight=400, italic=False, l_top=750):
     letters = "abcdefghijklmnopqrstuvwxyz"
     glyph_order = [".notdef", "H"] + list(letters)
     fb = FontBuilder(UPM, isTTF=True)
@@ -35,7 +35,7 @@ def make_font(stem=100, xh=500, cap=700, o_side=120, o_top=60, family="Test Sans
     for g in glyph_order:
         pen = TTGlyphPen(None)
         if g == "l":
-            rect(pen, 50, 0, 50 + stem, 750)
+            rect(pen, 50, 0, 50 + stem, l_top)
         elif g == "H":
             rect(pen, 50, 0, 150, cap)
             rect(pen, 450, 0, 550, cap)
@@ -119,3 +119,9 @@ def test_font_without_latin_is_skipped(tmp_path):
     (tmp_path / "ok.ttf").write_bytes(make_font())
     df, skipped = measure_collection(tmp_path)
     assert len(df) == 1 and len(skipped) == 1
+
+
+def test_caps_instead_of_lowercase_flagged():
+    """«l» той же высоты, что «x» (капитель на месте строчных) — x-height не настоящий."""
+    assert measure_font(TTFont(io.BytesIO(make_font(l_top=500)))).no_lowercase
+    assert not measure_font(TTFont(io.BytesIO(make_font()))).no_lowercase

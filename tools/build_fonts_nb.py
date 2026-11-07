@@ -20,6 +20,7 @@ from scipy import stats
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from labstat import dependence, describe as dsc, distributions as dist, hypotheses as hyp, stochastic  # noqa: E402
+from labstat.plots import DIST_RU  # noqa: E402
 
 SEED = 2026
 DATA = ROOT / "data" / "fonts.csv"
@@ -83,7 +84,7 @@ def code(s):
 UP = "\n\n<sub>[↑ к содержанию](#toc)</sub>"
 
 
-def build(df, r, sample_font: str | None, excluded=(), n_raw=None):
+def build(df, r, sample_font: str | None, excluded=(), n_raw=None, n_user=0, n_rand=0):
     cells = []
     cats = ", ".join(f"{k or 'без категории'} {v}" for k, v in sorted(r["cats"].items(), key=lambda t: -t[1]))
     X, S = r["x_height"], r["stem"]
@@ -154,7 +155,9 @@ fonts.shape
 <a id="ds-how"></a>
 ### 1.1 Как измерено
 
-Каждое семейство скачано с fonts.google.com («Get font → Download all») и разложено по папкам категорий.
+Шрифты взяты из двух источников: {n_user} семейств выбраны автором на fonts.google.com, ещё {n_rand} добавлены
+**случайным отбором** из репозитория Google Fonts (github.com/google/fonts) так, чтобы в каждой категории было по 20
+(`tools/sample_google_fonts.py`, `random.Random(2026)`). Категории — по каталогу Google Fonts (`data/font_categories.csv`).
 Скрипт `python -m labfont.collect fonts/ data/fonts.csv` берёт из архива одно начертание, ближайшее к Regular
 (прямое, вес 400; у вариативного шрифта создаётся экземпляр с $\\mathrm{{wght}} = 400$), и меряет контуры букв.
 
@@ -163,14 +166,17 @@ x-height $= 0.5$ значит, что при кегле 16 px строчные �
 
 - **x-height**: верхняя точка контура «x»;
 - **толщина штриха**: ширина вертикали «l» на линии $y = \\tfrac12\\,$x-height. Контур дробится в многоугольник,
-  точки пересечения с горизонталью сортируются, между парами лежит «чернила» (правило чёт-нечет);
+  по точкам пересечения с горизонталью находятся участки «чернил» (правило ненулевой обмотки, как у растеризатора шрифтов);
 - **контраст**: толщина боков «o» к толщине верха и низа; **ширина**: ширина «o» к x-height.
 
-**Очистка.** Измерено {n_raw} семейств. Исключены {len(excluded)} шрифта без настоящих строчных букв
-({", ".join(excluded)}): в капительных (SC) и униказовых шрифтах на месте «x» стоит капитель или прописная,
-и «x-height» у них — это не высота строчных. Spectral SC вдобавок повторяет Spectral. Начертания оптических размеров
+**Очистка.** Измерено семейств: {n_raw}. Исключены ({len(excluded)}) шрифты без настоящих строчных букв
+({", ".join(excluded)}): в капительных (SC) и декоративных шрифтах на месте «x» стоит капитель или прописная форма,
+и «x-height» у них — это не высота строчных. Признак: у «l» нет выносного элемента (она не выше «x» больше чем в 1.15 раза;
+у остальных шрифтов отношение от 1.25). Spectral SC вдобавок повторяет Spectral. Начертания оптических размеров
 (Inter 18pt, Fraunces 72pt) и ширин (Roboto SemiCondensed) объединены с основным семейством по папке Google Fonts.
-Категории взяты из каталога fonts.google.com (`data/font_categories.csv`).
+
+**Ограничение.** Выборка смешанная: часть шрифтов выбрана по вкусу, часть — случайно. Поэтому генеральная совокупность
+здесь — «эта коллекция», а не все шрифты мира; выводы о Google Fonts в целом делаются осторожно.
 
 Почему одно начертание на семейство: Bold, Italic и Regular одного семейства рисовал один дизайнер,
 это зависимые наблюдения. Наблюдение здесь — семейство.
@@ -262,7 +268,7 @@ plots.eda_panel(x_{key}, "{name}", "доли кегля", best_{key}, "fonts_{ke
 
 - $N = {r['N']}$, среднее {f(d['mean'])}, медиана {f(d['median'])}, СКО {f(d['std'], 4)}, коэффициент вариации {d['cv'] * 100:.1f} %.
 - Асимметрия ${d['skew']:+.2f}$, эксцесс ${d['kurt']:+.2f}$; диапазон {f(d['min'])}–{f(d['max'])}; выбросов по $1.5\\cdot\\mathrm{{IQR}}$: {R['out']}.
-- Лучшее семейство по AIC: {best}; D'Agostino $K^2$ для нормального: ${pexp(R['k2']['p'])}$.
+- Лучшее семейство по AIC: {DIST_RU.get(best, best)}; D'Agostino $K^2$ для нормального: ${pexp(R['k2']['p'])}$.
 
 **TODO КТвД: что видно на гистограмме и Q-Q, своими словами.**
 """))
@@ -385,7 +391,10 @@ def main(data=DATA, out=ROOT / "fonts.ipynb"):
     sample_dir = ROOT / "data" / "fonts_sample"
     sample = next((p.name for p in sorted(sample_dir.glob("*")) if p.suffix.lower() in (".ttf", ".otf")), None) \
         if sample_dir.exists() else None
-    nb = build(df, r, sample, excluded, len(raw))
+    import csv
+    src = [row["source"] for row in csv.DictReader(open(ROOT / "data" / "font_categories.csv", encoding="utf-8"))]
+    n_rand = sum("случайный отбор" in x for x in src)
+    nb = build(df, r, sample, excluded, len(raw), n_user=len(src) - n_rand, n_rand=n_rand)
     out.write_text(json.dumps(nb, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{out}: {len(nb['cells'])} ячеек, N = {r['N']}")
 
