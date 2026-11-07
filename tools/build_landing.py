@@ -2,8 +2,8 @@
 
     python tools/build_landing.py            # или через tools/build_site.py вместе с экспортом marimo
 
-Страница самодостаточная: данные (квантили pH, измерения шрифтов) встраиваются как JSON,
-живой датчик pH работает на чистом JavaScript. Если рядом есть docs/datchik/ (экспорт
+Страница самодостаточная: измерения шрифтов встраиваются как JSON,
+живой датчик работает на чистом JavaScript. Если рядом есть docs/datchik/ (экспорт
 marimo), страница ссылается на него.
 """
 from __future__ import annotations
@@ -23,24 +23,26 @@ REPO = os.environ.get("LAB_REPO_URL", "").rstrip("/")   # этот репози�
 MAIN = os.environ.get("LAB_MAIN_URL", "").rstrip("/")   # общий репозиторий команды с lab01.ipynb (необязательно)
 
 
-def wine_block():
-    w = pd.read_csv(ROOT / "data" / "winequality-white.csv", sep=";")
-    x = np.sort(w["pH"].to_numpy())
-    p = (np.arange(1, x.size + 1) - 0.5) / x.size
-    q = np.interp(np.linspace(0, 1, 201), p, x)
-    edges = np.arange(2.705, 3.845, 0.02)
-    h, _ = np.histogram(x, bins=edges, density=True)
-    rows = []
-    for col, nm, unit in (("pH", "pH", "ед. pH"), ("fixed acidity", "фиксированная кислотность", "г/дм³"),
-                          ("alcohol", "спирт", "% об.")):
-        v = w[col]
-        rows.append({"name": nm, "unit": unit, "mean": round(v.mean(), 3), "sd": round(v.std(), 3),
-                     "skew": round(float(stats.skew(v)), 2)})
-    grid = np.round(np.arange(2.50, 4.21, 0.01), 2)          # сетка шага прибора 0.01
-    fdat = np.searchsorted(np.round(x, 2), grid + 1e-9, side="right") / x.size
-    return {"grid": [float(g) for g in grid], "fdat": [round(float(v), 6) for v in fdat],
-            "q": [round(float(v), 4) for v in q], "edges": [round(float(e), 3) for e in edges],
-            "hist": [round(float(v), 4) for v in h], "n": int(x.size), "rows": rows}
+def rng_block():
+    """Данные для живого датчика: две величины шрифтов, модели ММП, гистограммы, отсортированные значения."""
+    f = pd.read_csv(ROOT / "data" / "fonts.csv")
+    f = f[~f.no_lowercase]
+    out = {}
+    for key, col, fam, lo, hi, step in (("x", "x_height", "skewnorm", 0.15, 0.65, 0.025),
+                                       ("s", "stem", "lognorm", 0.0, 0.22, 0.01)):
+        x = np.sort(f[col].to_numpy(float))
+        params = getattr(stats, fam).fit(x)
+        edges = np.round(np.arange(lo, hi + step / 2, step), 4)
+        h, _ = np.histogram(x, bins=edges, density=True)
+        p = (np.arange(1, x.size + 1) - 0.5) / x.size
+        q = np.interp(np.linspace(0, 1, 201), p, x)
+        ks = stats.kstest(x, fam, args=params)
+        out[key] = {"fam": fam, "params": [round(float(v), 6) for v in params],
+                    "edges": [float(e) for e in edges], "hist": [round(float(v), 4) for v in h],
+                    "data": [round(float(v), 5) for v in x], "q": [round(float(v), 5) for v in q],
+                    "mean": round(float(x.mean()), 4), "sd": round(float(x.std(ddof=1)), 4),
+                    "outside": int(((x < lo) | (x > hi)).sum()), "fit_ks_p": round(float(ks.pvalue), 3)}
+    return out
 
 
 def fonts_block():
@@ -67,10 +69,10 @@ def link(path, text):
 def main():
     DOCS.mkdir(exist_ok=True)
     (DOCS / "img").mkdir(exist_ok=True)
-    for name in ("rv01_rv02_dependence.png", "fonts_measure.png", "rv01_eda.png"):
+    for name in ("fonts_measure.png",):
         if (ROOT / "figures" / name).exists():
             shutil.copy(ROOT / "figures" / name, DOCS / "img" / name)
-    data = {"wine": wine_block(), "fonts": fonts_block()}
+    data = {"rng": rng_block(), "fonts": fonts_block()}
     has_marimo = (DOCS / "datchik" / "index.html").exists()
     marimo = ('<a class="button" href="datchik/">Открыть полный датчик</a>' if has_marimo else
               '<span class="note">Полная версия на marimo появится здесь после команды '
@@ -299,18 +301,28 @@ input[type=text]:hover{border-color:#9aa0a8}
 </section>
 
 <section class="wrap" id="rng">
-  <h2>Датчик: случайное число, похожее на pH</h2>
+  <h2>Датчик: случайный шрифт, похожий на настоящий</h2>
   <div class="text">
-  <p>Это датчик из спринта 2. pH белого вина описан логнормальным распределением со сдвигом:
-  <i>X</i> = θ + e<sup>μ + σ<i>Z</i></sup>, где <i>Z</i> — стандартное нормальное число. Нормальные числа получаются
-  полярным методом Марсальи: точка бросается в квадрат, и остаются только точки внутри круга.
-  Для сравнения можно включить квантильное преобразование по самим данным.</p>
+  <p>Датчик случайных чисел выдаёт значения, распределённые так же, как пропорции моих 100 шрифтов.
+  Сначала базовый датчик даёт равномерное число <i>U</i> от 0 до 1, потом метод превращает его в нужную величину.</p>
+  <p><b>Полярный метод Марсальи:</b> точка бросается в квадрат, остаются только точки внутри круга, и из них
+  получаются нормальные числа <i>Z</i>. Дальше <i>Z</i> переводится в модель: для x-height это скошенное нормальное
+  распределение, для толщины штриха логнормальное <i>X</i> = θ + e<sup>μ + σ<i>Z</i></sup>.
+  <b>Квантильный метод</b> модель не использует: он берёт <i>U</i> и находит значение, ниже которого лежит
+  такая же доля шрифтов.</p>
   </div>
   <div class="controls">
+    <label><span id="rvarLab">Величина</span>
+      <span class="seg" data-for="rvar" role="radiogroup" aria-labelledby="rvarLab"></span>
+      <select id="rvar" class="sr" tabindex="-1" aria-hidden="true">
+        <option value="x">x-height</option>
+        <option value="s">толщина штриха</option>
+      </select>
+    </label>
     <label><span id="methodLab">Метод</span>
       <span class="seg" data-for="method" role="radiogroup" aria-labelledby="methodLab"></span>
       <select id="method" class="sr" tabindex="-1" aria-hidden="true">
-        <option value="polar">Полярный (спринт 2)</option>
+        <option value="polar">Полярный</option>
         <option value="quantile">Квантильный</option>
       </select>
     </label>
@@ -322,15 +334,16 @@ input[type=text]:hover{border-color:#9aa0a8}
         <option value="randu">RANDU</option>
       </select>
     </label>
-    <label style="min-width:12rem"><span>Сколько чисел: <output id="nout" class="val">4900</output></span>
-      <input id="n" type="range" min="100" max="20000" step="100" value="4900" style="width:100%">
+    <label style="min-width:12rem"><span>Сколько чисел: <output id="nout" class="val">1000</output></span>
+      <input id="n" type="range" min="100" max="20000" step="100" value="1000" style="width:100%">
     </label>
     <button id="go" type="button">Сгенерировать заново</button>
   </div>
   <div class="lab">
     <div class="chart">
-      <svg id="hist" viewBox="0 0 640 300" role="img" aria-label="Гистограмма pH: данные и датчик"></svg>
-      <div class="legend"><span><i class="sw" style="background:#bcd6f3"></i>данные, 4898 вин</span><span><i class="sw" style="background:var(--orange)"></i>датчик (округлён до 0,01, как прибор)</span></div>
+      <svg id="hist" viewBox="0 0 640 300" role="img" aria-label="Гистограмма: шрифты и датчик"></svg>
+      <div class="legend"><span><i class="sw" style="background:#bcd6f3"></i>мои шрифты, 100 семейств</span><span><i class="sw" style="background:var(--orange)"></i>датчик</span></div>
+      <p class="note" id="histnote" style="margin:.3rem 0 0"></p>
     </div>
     <div>
       <div class="chart"><canvas id="trip" width="520" height="520" aria-label="Точки базового датчика"></canvas></div>
@@ -339,15 +352,14 @@ input[type=text]:hover{border-color:#9aa0a8}
   </div>
   <p class="readout" id="readout"></p>
   <p>__MARIMO__</p>
-  <p class="note">Данные о винах взяты из общей работы команды__L_NB__. В полной версии на marimo шесть методов для трёх величин вина и таблица сравнения: __L_DATCHIK__.</p>
+  <p class="note">В полной версии на marimo шесть методов, четыре величины шрифтов и таблица сравнения: __L_DATCHIK__.</p>
 </section>
 </main>
 
 <footer class="wrap">
   <p>Быкова Кристина Денисовна, ИСУ 501322, группа 27, трек КТвД. Lab01, прикладная статистика, осень 2026:
-  датасет шрифтов, датчик pH (спринт 2), интерактив и этот сайт. Данные о винах — общая работа команды
-  с Нефедьевой Антониной Сергеевной (трек «Инфохимия»).</p>
-  <p>Данные: Wine Quality, UCI ML Repository, DOI 10.24432/C56S3T; шрифты: Google Fonts (SIL OFL).</p>
+  доп. задание КТвД — датасет шрифтов, датчик случайных чисел, интерактив и этот сайт.</p>
+  <p>Шрифты: Google Fonts (SIL Open Font License).</p>
 </footer>
 
 <script>
@@ -383,37 +395,42 @@ function makeBase(kind, seed = 2026) {
   }
   return Math.random;
 }
-const Q = D.wine.q;
-function quantile(u) {           // эмпирическая F^-1 с линейной интерполяцией
-  const t = u * (Q.length - 1), i = Math.min(Math.floor(t), Q.length - 2);
+const R = D.rng;
+let RV = R.x;                                // выбранная величина: x-height или толщина штриха
+function quantile(u) {                      // эмпирическая F^-1 с линейной интерполяцией
+  const Q = RV.q, t = u * (Q.length - 1), i = Math.min(Math.floor(t), Q.length - 2);
   return Q[i] + (t - i) * (Q[i + 1] - Q[i]);
 }
 
-/* --- полярный метод Марсальи (спринт 2): pH = theta + exp(mu + sigma*Z) --- */
-const TH = 2.0877, MU = Math.log(1.0904), SG = 0.1363;
-function polarPH(u, n) {
-  const out = []; let tried = 0, acc = 0; const pts = [];
-  while (out.length < n) {
+/* --- полярный метод Марсальи: пары нормальных чисел из точек внутри круга --- */
+function polarNormals(u, m) {
+  const z = []; let tried = 0, acc = 0; const pts = [];
+  while (z.length < m) {
     const v1 = 2 * u() - 1, v2 = 2 * u() - 1, s = v1 * v1 + v2 * v2;
     tried++;
     if (pts.length < 1500) pts.push([v1, v2, s > 0 && s < 1]);
-    if (s > 0 && s < 1) {
-      acc++;
-      const f = Math.sqrt(-2 * Math.log(s) / s);
-      out.push(TH + Math.exp(MU + SG * v1 * f), TH + Math.exp(MU + SG * v2 * f));
-    }
+    if (s > 0 && s < 1) { acc++; const f = Math.sqrt(-2 * Math.log(s) / s); z.push(v1 * f, v2 * f); }
   }
-  return {x: out.slice(0, n), acc: acc / tried, pts};
+  return {z, acc: acc / tried, pts};
+}
+function polarGen(u, n) {
+  const [a, b, c] = RV.params;
+  if (RV.fam === "lognorm") {                // X = θ + e^(μ + σZ): σ = a, θ = b, e^μ = c
+    const r = polarNormals(u, n); return {x: r.z.slice(0, n).map(z => b + c * Math.exp(a * z)), acc: r.acc, pts: r.pts};
+  }
+  // скошенное нормальное (Аззалини): X = loc + scale·(δ|Z0| + √(1−δ²)·Z1), δ = α/√(1+α²)
+  const r = polarNormals(u, 2 * n), d = a / Math.sqrt(1 + a * a), x = [];
+  for (let i = 0; i < n; i++) x.push(b + c * (d * Math.abs(r.z[2 * i]) + Math.sqrt(1 - d * d) * r.z[2 * i + 1]));
+  return {x, acc: r.acc, pts: r.pts};
 }
 
 /* --- гистограмма --- */
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-const E = D.wine.edges, H = D.wine.hist;
 const W = 640, Hh = 300, pad = {l: 64, r: 12, t: 12, b: 40};   // слева место под числа оси и подпись
+let E, H, yMax;
 const xs = v => pad.l + (v - E[0]) / (E[E.length - 1] - E[0]) * (W - pad.l - pad.r);
-const yMax = Math.max(...H) * 1.25;
-const ys = v => Hh - pad.b - v / yMax * (Hh - pad.t - pad.b);
+const ys = v => Hh - pad.b - Math.min(v, yMax) / yMax * (Hh - pad.t - pad.b);
 const svg = document.getElementById("hist");
 function axes(s, xticks, yticks, xlab, ylab, X, Y, w, h, xd = 2, yd = 0) {
   xticks.forEach(t => { s.append(el("line", {x1: X(t), x2: X(t), y1: pad.t, y2: h - pad.b, stroke: "#e6e5e0"}));
@@ -425,7 +442,12 @@ function axes(s, xticks, yticks, xlab, ylab, X, Y, w, h, xd = 2, yd = 0) {
 }
 function drawHist(gen) {
   svg.replaceChildren();
-  axes(svg, [2.8, 3.0, 3.2, 3.4, 3.6, 3.8], [0, 1, 2, 3], "pH, ед. pH", "плотность", xs, ys, W, Hh);
+  E = RV.edges; H = RV.hist;
+  const isX = RV === R.x;
+  yMax = Math.max(...H) * 1.3;
+  const yt = niceTicks(0, yMax, 4)[0];
+  axes(svg, isX ? [0.2, 0.3, 0.4, 0.5, 0.6] : [0, 0.05, 0.1, 0.15, 0.2], yt.filter(t => t < yMax), (isX ? "x-height" : "толщина штриха") + ", доли кегля",
+       "плотность", xs, ys, W, Hh, isX ? 1 : 2, 0);
   H.forEach((v, i) => svg.append(el("rect", {x: xs(E[i]) + .5, y: ys(v), width: Math.max(0, xs(E[i + 1]) - xs(E[i]) - 1), height: ys(0) - ys(v), fill: "#bcd6f3"})));
   const cnt = new Array(H.length).fill(0), bw = E[1] - E[0];
   gen.forEach(v => { const i = Math.floor((v - E[0]) / bw); if (i >= 0 && i < cnt.length) cnt[i]++; });
@@ -458,37 +480,50 @@ function drawTriples(kind) {
 
 /* --- запуск --- */
 const nIn = document.getElementById("n"), nOut = document.getElementById("nout"), baseIn = document.getElementById("base");
-const methodIn = document.getElementById("method"), tripNote = document.getElementById("tripnote");
+const methodIn = document.getElementById("method"), varIn = document.getElementById("rvar"), tripNote = document.getElementById("tripnote");
+function ks2(a, b) {                        // точное D Колмогорова–Смирнова для двух отсортированных выборок
+  let i = 0, j = 0, d = 0;
+  while (i < a.length && j < b.length) {
+    const t = Math.min(a[i], b[j]);
+    while (i < a.length && a[i] <= t) i++;
+    while (j < b.length && b[j] <= t) j++;
+    d = Math.max(d, Math.abs(i / a.length - j / b.length));
+  }
+  return d;
+}
 function run() {
+  RV = R[varIn.value];
   const n = +nIn.value, u = makeBase(baseIn.value, 2026 + Math.floor(Math.random() * 1e6));
   let gen, accTxt = "";
   if (methodIn.value === "polar") {
-    const r = polarPH(u, n);
-    gen = r.x.map(v => Math.round(v * 100) / 100);   // шаг прибора 0,01
+    const r = polarGen(u, n);
+    gen = r.x;
     drawPolar(r.pts);
     tripNote.innerHTML = "Полярный метод: синие точки внутри круга приняты, оранжевые в углах отброшены.";
     accTxt = ` Доля принятых точек <b>${nf(r.acc)}</b> (теория π/4 = 0,785).`;
   } else {
-    gen = Array.from({length: n}, () => Math.round(quantile(u()) * 100) / 100);
+    gen = Array.from({length: n}, () => quantile(u()));
     drawTriples(baseIn.value);
     tripNote.innerHTML = "Тройки чисел базового датчика в проекции (6<i>u</i><sub>k+1</sub> − 9<i>u</i><sub>k</sub>) mod 1 по горизонтали и <i>u</i><sub>k+2</sub> по вертикали. У RANDU все точки ложатся на прямую: это его известный дефект.";
   }
   drawHist(gen);
+  const out = gen.filter(v => v < E[0] || v > E[E.length - 1]).length;
+  document.getElementById("histnote").textContent = RV.outside || out
+    ? `Правее края графика: шрифтов ${RV.outside}, чисел датчика ${out}. Это самые жирные акцидентные шрифты.` : "";
   const m = gen.reduce((s, v) => s + v, 0) / n, sd = Math.sqrt(gen.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1));
-  const sorted = gen.slice().sort((p, q) => p - q);
-  const N0 = D.wine.n, crit = 1.358 * Math.sqrt((n + N0) / (n * N0));   // критическое значение КС, alpha = 0.05
-  let D_ = 0;   // D Колмогорова: обе ЭФР на сетке шага прибора 0,01 (значения датчика округлены до 0,01)
-  D.wine.grid.forEach((g, i) => { let lo = 0, hi = n; while (lo < hi) { const mid = (lo + hi) >> 1; sorted[mid] <= g + 1e-9 ? lo = mid + 1 : hi = mid; }
-    D_ = Math.max(D_, Math.abs(lo / n - D.wine.fdat[i])); });
+  const N0 = RV.data.length, crit = 1.358 * Math.sqrt((n + N0) / (n * N0));   // критическое значение КС, alpha = 0.05
+  const D_ = ks2(gen.slice().sort((p, q) => p - q), RV.data);
   document.getElementById("readout").innerHTML =
-    `Датчик: среднее <b>${nf(m)}</b>, СКО <b>${nf(sd)}</b>; данные: среднее <b>3,188</b>, СКО <b>0,151</b>. ` +
+    `Датчик: среднее <b>${nf(m)}</b>, СКО <b>${nf(sd)}</b>; шрифты: среднее <b>${nf(RV.mean)}</b>, СКО <b>${nf(RV.sd)}</b>. ` +
     `Расстояние Колмогорова между функциями распределения <b>${nf(D_)}</b> при пороге <b>${nf(crit)}</b> (α = 0,05): ` +
-    (D_ < crit ? "датчик и данные статистически не различаются." : "различие значимо.") + accTxt;
+    (D_ < crit ? "датчик и шрифты статистически не различаются." : "различие значимо.") + accTxt +
+    (methodIn.value === "polar" && RV.fit_ks_p < 0.05
+      ? ` <br>Модель для этой величины сама не идеальна: критерий Колмогорова отвергает её для шрифтов (p = ${nf(RV.fit_ks_p)}), мешают несколько очень жирных акцидентных шрифтов. Поэтому полярный метод может давать «различие значимо», а квантильный — нет.`
+      : "");
 }
 nIn.addEventListener("input", () => { nOut.textContent = nIn.value; });
 nIn.addEventListener("change", run);
-baseIn.addEventListener("change", run);
-methodIn.addEventListener("change", run);
+[baseIn, methodIn, varIn].forEach(e => e.addEventListener("change", run));
 document.getElementById("go").addEventListener("click", run);
 run();
 

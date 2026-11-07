@@ -16,8 +16,9 @@ def _(mo):
         r"""
         # Lab01 · интерактивный датчик случайных чисел
 
-        Датчик воспроизводит величины из исследования белых вин (Wine Quality, $N = 4898$):
-        **pH**, **фиксированную кислотность** и **спирт**. Схема любого датчика:
+        Датчик воспроизводит пропорции шрифтов из моего датасета ($N = 100$ семейств, по 20 в каждой
+        категории): **x-height**, **толщину штриха**, **контраст «o»** и **ширину «o»**. Все величины
+        в долях кегля или безразмерные. Схема любого датчика:
 
         $$U \sim U(0, 1)\ \xrightarrow{\ \text{метод}\ }\ X \sim F_{\text{данных}}$$
 
@@ -51,12 +52,15 @@ def _(mo):
     # Код датчиков: копия labrng/generators.py (tools/build_site.py держит её в актуальном виде)
     G = types.ModuleType("generators")
     exec(read_text(_pub / "generators.py"), G.__dict__)
-    wine = pd.read_csv(io.StringIO(read_text(_pub / "winequality-white.csv")), sep=";")
+    fonts = pd.read_csv(io.StringIO(read_text(_pub / "fonts.csv")))
+    fonts = fonts[~fonts["no_lowercase"].astype(str).eq("True")]   # без шрифтов без строчных, как в ноутбуке
 
+    # величина: (столбец, единица, модель по умолчанию — лучшая по AIC среди доступных)
     VARS = {
-        "pH": ("pH", "ед. pH", 0.01),
-        "фиксированная кислотность": ("fixed acidity", "г/дм³", 0.1),
-        "спирт": ("alcohol", "% об.", 0.1),
+        "x-height": ("x_height", "доли кегля", "skewnorm"),
+        "толщина штриха": ("stem", "доли кегля", "lognorm"),
+        "контраст «o»": ("contrast", "отношение", "lognorm"),
+        "ширина «o»": ("width_o", "отношение", "lognorm"),
     }
     C1, C2, INK2 = "#2a78d6", "#eb6834", "#52514e"
     plt.rcParams.update({
@@ -64,42 +68,42 @@ def _(mo):
         "axes.grid": True, "grid.color": "#e6e5e0", "axes.edgecolor": INK2,
         "legend.frameon": False, "axes.titlesize": 11, "axes.labelsize": 10,
     })
-    return C1, C2, G, INK2, VARS, np, pd, plt, time, wine
+    return C1, C2, G, INK2, VARS, fonts, np, pd, plt, time
 
 
 @app.cell
 def _(G, VARS, mo):
-    var = mo.ui.dropdown(options=list(VARS), value="pH", label="Величина")
+    var = mo.ui.dropdown(options=list(VARS), value="толщина штриха", label="Величина")
     base = mo.ui.dropdown(options={v: k for k, v in G.BASE_RU.items()},
                           value=G.BASE_RU["pcg64"], label="Базовый датчик U(0, 1)")
     method = mo.ui.dropdown(options={v: k for k, v in G.METHOD_RU.items()},
                             value=G.METHOD_RU["quantile"], label="Метод")
-    family = mo.ui.dropdown(options={"скошенное нормальное": "skewnorm", "логнормальное со сдвигом": "lognorm",
-                                     "нормальное": "norm"},
-                            value="скошенное нормальное", label="Модель (для методов через модель)")
-    n = mo.ui.slider(start=100, stop=20000, step=100, value=4900, label="Объём выборки n", show_value=True)
+    family = mo.ui.dropdown(options={"по умолчанию для величины": "auto", "скошенное нормальное": "skewnorm",
+                                     "логнормальное со сдвигом": "lognorm", "нормальное": "norm"},
+                            value="по умолчанию для величины", label="Модель (для методов через модель)")
+    n = mo.ui.slider(start=100, stop=20000, step=100, value=1000, label="Объём выборки n", show_value=True)
     seed = mo.ui.number(start=0, stop=10**9, value=2026, label="seed")
-    rounding = mo.ui.checkbox(value=True, label="округлять к шагу прибора")
-    mo.vstack([mo.hstack([var, base, method]), mo.hstack([family, n, seed, rounding])])
-    return base, family, method, n, rounding, seed, var
+    mo.vstack([mo.hstack([var, base, method]), mo.hstack([family, n, seed])])
+    return base, family, method, n, seed, var
 
 
 @app.cell
-def _(G, VARS, base, family, method, n, rounding, seed, var, wine):
-    col, unit, step = VARS[var.value]
-    real = wine[col].to_numpy(float)
-    gen, info = G.generate(real, n.value, method=method.value, family=family.value,
-                           base=base.value, seed=int(seed.value), step=step if rounding.value else 0.0)
+def _(G, VARS, base, family, fonts, method, n, np, seed, var):
+    col, unit, _default = VARS[var.value]
+    fam = _default if family.value == "auto" else family.value
+    real = fonts[col].astype(float).dropna().to_numpy()
+    # измерения непрерывные (шаг 1/UPM ≈ 0.001 доли кегля), поэтому датчик не округляем
+    gen, info = G.generate(real, n.value, method=method.value, family=fam,
+                           base=base.value, seed=int(seed.value), step=0.0)
     cmp_ = G.compare(real, gen)
-    return cmp_, gen, info, real, step, unit
+    return cmp_, fam, gen, info, real, unit
 
 
 @app.cell
-def _(C1, C2, G, INK2, base, gen, np, plt, real, seed, step, unit, var):
+def _(C1, C2, G, INK2, base, gen, np, plt, real, seed, unit, var):
     fig, ax = plt.subplots(2, 2, figsize=(11, 7))
-    _lo, _hi = np.quantile(np.concatenate([real, gen]), [0.001, 0.999])
-    _w = step * max(1, round((_hi - _lo) / step / 45))
-    _bins = np.arange(_lo - step / 2, _hi + _w, _w)
+    _lo, _hi = np.quantile(np.concatenate([real, gen]), [0.005, 0.995])
+    _bins = np.linspace(_lo, _hi, 26)   # 100 шрифтов: 25 интервалов, крайние 0.5 % не показываем
     ax[0, 0].hist(real, bins=_bins, density=True, color=C1, alpha=0.35, label="данные")
     ax[0, 0].hist(gen, bins=_bins, density=True, histtype="step", color=C2, linewidth=1.8, label="датчик")
     ax[0, 0].set(xlabel=f"{var.value}, {unit}", ylabel="плотность", title="Гистограммы")
@@ -128,7 +132,7 @@ def _(C1, C2, G, INK2, base, gen, np, plt, real, seed, step, unit, var):
 
 
 @app.cell
-def _(G, cmp_, info, method, mo, pd):
+def _(G, cmp_, fam, info, method, mo, pd):
     _rows = pd.DataFrame({"данные": cmp_["real"], "датчик": cmp_["gen"]})
     _rows["разница"] = _rows["датчик"] - _rows["данные"]
     _ok = cmp_["ks_p"] > 0.05 and cmp_["chi2_p"] > 0.05
@@ -136,7 +140,7 @@ def _(G, cmp_, info, method, mo, pd):
     _acc = f"Доля принятых точек: **{info['accept']:.3f}**" + (f" (теория {_acc_theory})." if _acc_theory else ".")
     _params = f"Параметры модели (ММП): `{tuple(round(p, 4) for p in info['params'])}`." if "params" in info else ""
     mo.vstack([
-        mo.md(f"### Метрики: данные против датчика ({G.METHOD_RU[method.value]})"),
+        mo.md(f"### Метрики: данные против датчика ({G.METHOD_RU[method.value]}, модель: {fam})"),
         mo.ui.table(_rows.round(4).reset_index(names="статистика"), selection=None, pagination=False),
         mo.callout(mo.md(
             f"Критерий Колмогорова–Смирнова (две выборки): $D = {cmp_['ks_D']:.4f}$, $p = {cmp_['ks_p']:.3f}$.  \n"
@@ -160,7 +164,7 @@ $p_i = (i - 0.5)/n$ и соединяем линейно. Модель не ну
         "inverse": r"""
 **Метод обратной функции по модели.** То же $X = F^{-1}(U)$, но $F$ — подобранное семейство
 с параметрами ММП. Качество датчика ограничено качеством модели: если гипотеза о семействе
-отвергнута (см. раздел Hypotheses в ноутбуке), датчик тоже будет отличаться от данных.""",
+отвергнута (см. раздел о распределениях в `fonts.ipynb`), датчик тоже будет отличаться от данных.""",
         "box_muller": r"""
 **Бокс–Мюллер.** Из двух независимых $U_1, U_2$:
 $Z_1 = \sqrt{-2\ln U_1}\cos 2\pi U_2,\ Z_2 = \sqrt{-2\ln U_1}\sin 2\pi U_2$ — две независимые $N(0,1)$.
@@ -188,12 +192,12 @@ def _(mo):
 
 
 @app.cell
-def _(G, VARS, base, family, n, pd, real, rounding, seed, step, time, var):
+def _(G, base, fam, n, pd, real, seed, time):
     _rows = []
     for _m in G.METHODS:
         _t = time.perf_counter()
-        _x, _i = G.generate(real, n.value, method=_m, family=family.value, base=base.value,
-                            seed=int(seed.value), step=step if rounding.value else 0.0)
+        _x, _i = G.generate(real, n.value, method=_m, family=fam, base=base.value,
+                            seed=int(seed.value), step=0.0)
         _dt = (time.perf_counter() - _t) * 1000
         _c = G.compare(real, _x)
         _rows.append({"метод": G.METHOD_RU[_m], "Δ среднего": _c["gen"]["среднее"] - _c["real"]["среднее"],
@@ -213,7 +217,8 @@ def _(mo):
         **Как читать.** Методы «через модель» (обратная функция, Бокс–Мюллер, полярный, отношений)
         повторяют данные настолько, насколько хороша модель. Квантильное преобразование и метод Неймана
         моделью не пользуются и повторяют данные почти точно, зато не обобщают: не дают значений
-        за пределами наблюдённых. Базовый датчик RANDU на графике троек ложится на прямые: это его
+        за пределами наблюдённых. У толщины штриха есть несколько очень жирных акцидентных шрифтов,
+        поэтому гладкая модель повторяет её хуже, чем x-height. Базовый датчик RANDU на графике троек ложится на прямые: это его
         известный дефект (Knuth, TAOCP, т. 2, § 3.3.4).
 
         Код датчиков: `labrng/generators.py`, автотесты: `tests/test_labrng.py`. Автор: Быкова К. Д. (КТвД).

@@ -16,10 +16,7 @@ INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e0"
 DIST_RU = {"norm": "нормальное", "lognorm": "логнормальное", "skewnorm": "скошенное нормальное",
            "gamma": "гамма", "weibull_min": "Вейбулла"}
 EST_RU = {"mean": "среднее", "var": "дисперсия", "median": "медиана"}
-COL_RU = {"fixed_acidity": "фикс. кислотность", "volatile_acidity": "летуч. кислотность",
-          "citric_acid": "лимонная к-та", "residual_sugar": "остат. сахар", "chlorides": "хлориды",
-          "free_so2": "своб. SO₂", "total_so2": "общий SO₂", "density": "плотность", "ph": "pH",
-          "sulphates": "сульфаты", "alcohol": "спирт", "quality": "качество"}
+COL_RU: dict[str, str] = {}   # русские подписи столбцов передаются из вызывающего кода (labfont.fontplots.COL_RU)
 
 
 def style():
@@ -36,7 +33,7 @@ def style():
 def grid_bins(x, target: int = 45):
     """Интервалы гистограммы, кратные шагу округления данных.
 
-    Значения в датасете записаны с шагом (pH 0.01, спирт 0.1). Если ширина интервала
+    Значения в датасете могут быть записаны с шагом (например, 0.01). Если ширина интервала
     не кратна шагу, в одни интервалы попадает больше «узлов сетки», чем в другие,
     и на гистограмме появляются ложные пики.
     """
@@ -163,7 +160,7 @@ def scatter_dependence(x, y, xl: str, yl: str, title: str, fname: str):
     style()
     fig, ax = plt.subplots(figsize=(6.2, 4.2))
     hb = ax.hexbin(x, y, gridsize=35, cmap="Blues", mincnt=1, linewidths=0.2)
-    fig.colorbar(hb, ax=ax, label="число вин в ячейке")
+    fig.colorbar(hb, ax=ax, label="число объектов в ячейке")
     # медиана y в децилях x показывает форму связи
     edges = np.quantile(x, np.linspace(0, 1, 11))
     mid = 0.5 * (edges[1:] + edges[:-1])
@@ -175,7 +172,7 @@ def scatter_dependence(x, y, xl: str, yl: str, title: str, fname: str):
     return save(fig, fname)
 
 
-def corr_heatmap(corr, fname: str):
+def corr_heatmap(corr, fname: str, title: str = "Связи между всеми измерениями"):
     style()
     fig, ax = plt.subplots(figsize=(7.5, 6.2))
     im = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1)
@@ -187,7 +184,7 @@ def corr_heatmap(corr, fname: str):
             v = corr.values[i, j]
             ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=6.5, color="white" if abs(v) > 0.6 else INK)
     fig.colorbar(im, ax=ax, label="ρ Спирмена")
-    ax.set_title("Связи между всеми измерениями (белые вина)")
+    ax.set_title(title)
     fig.tight_layout()
     return save(fig, fname)
 
@@ -207,7 +204,7 @@ def two_groups(a, b, la: str, lb: str, xlabel: str, title: str, fname: str):
 
 
 def stochastic_panel(y, resid, label: str, unit: str, step: float, fname: str):
-    """Остатки лучшей линейной модели по остальным 10 измерениям против шага округления прибора."""
+    """Остатки лучшей линейной модели по остальным измерениям против шага округления прибора."""
     style()
     fig, ax = plt.subplots(1, 2, figsize=(11, 3.4))
     pred = y - resid
@@ -215,13 +212,13 @@ def stochastic_panel(y, resid, label: str, unit: str, step: float, fname: str):
     # оси по 0.1–99.9 % квантилям, чтобы единичные выбросы не сжимали картинку
     lo, hi = np.quantile(np.concatenate([y, pred]), [0.001, 0.999])
     ax[0].plot([lo, hi], [lo, hi], color=C2, linewidth=1.2, label="y = прогноз")
-    ax[0].set(xlim=(lo, hi), ylim=(lo, hi), xlabel=f"прогноз по 10 другим измерениям, {unit}",
+    ax[0].set(xlim=(lo, hi), ylim=(lo, hi), xlabel=f"прогноз по другим измерениям, {unit}",
               ylabel=f"измерено, {unit}", title=f"{label}: прогноз против факта")
     ax[0].legend(loc="upper left")
     r_lo, r_hi = np.quantile(resid, [0.001, 0.999])
     ax[1].hist(resid[(resid >= r_lo) & (resid <= r_hi)], bins=60, color=C1, alpha=0.5, edgecolor="white", linewidth=0.4)
     ax[1].axvspan(-step / 2, step / 2, color=C2, alpha=0.6, label=f"± половина шага прибора ({step:g})")
-    ax[1].set(xlabel=f"остаток, {unit}", ylabel="число вин", title="остатки модели (без 0.2 % крайних)")
+    ax[1].set(xlabel=f"остаток, {unit}", ylabel="число объектов", title="остатки модели (без 0.2 % крайних)")
     ax[1].legend(loc="upper left", fontsize=8)
     ax[1].set_ylim(top=ax[1].get_ylim()[1] * 1.18)   # место под легенду, чтобы не наезжала на столбцы
     fig.tight_layout()

@@ -194,7 +194,7 @@ def generate(data, n: int, *, method: str = "quantile", family: str = "skewnorm"
              base: str = "pcg64", seed: int = 2026, step: float = 0.0, params: tuple | None = None):
     """Сгенерировать n чисел «как data». Возвращает (выборка, служебная информация).
 
-    step > 0: округлить к шагу записи прибора (у pH 0.01, у кислотности и спирта 0.1).
+    step > 0: округлить к шагу записи прибора (например, 0.001 доли кегля).
     """
     if method not in METHODS:
         raise ValueError(f"method должен быть одним из {METHODS}")

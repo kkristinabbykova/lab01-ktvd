@@ -2,7 +2,7 @@
 
 Идея: если бы величина была детерминированной функцией остальных
 измерений, то (1) модель по остальным признакам объясняла бы её почти
-полностью, с остатками порядка точности прибора; (2) у вин с одинаковыми
+полностью, с остатками порядка точности прибора; (2) у объектов с одинаковыми
 остальными измерениями значение совпадало бы.
 """
 from __future__ import annotations
@@ -54,7 +54,7 @@ def cv_r2_knn(X, y, k_neighbors: int = 15, k: int = 5, seed: int = 0) -> dict:
 
 
 def same_inputs_different_target(df: pd.DataFrame, target: str) -> pd.DataFrame:
-    """Группы вин, у которых ВСЕ остальные измерения совпадают, а target разный."""
+    """Группы объектов, у которых ВСЕ остальные измерения совпадают, а target разный."""
     others = [c for c in df.columns if c != target]
     g = df.groupby(others)[target].agg(["nunique", "min", "max", "count"])
     return g[g["nunique"] > 1].reset_index(drop=True)

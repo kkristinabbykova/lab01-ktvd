@@ -100,7 +100,7 @@ def build(df, r, sample_font: str | None, excluded=(), n_raw=None, n_user=0, n_r
 | Категории | {cats} |
 | Случайные величины | RV01 **x-height**, RV02 **толщина штриха «l»**; обе в долях кегля |
 | Автор | Быкова Кристина Денисовна (ИСУ 501322), группа 27, трек КТвД |
-| Код | `labfont/` (измерения, схема), `labstat/` (статистика из основной части, автор Нефедьева А. С.), тесты `tests/test_labfont.py` |
+| Код | `labfont/` (измерения, схема), `labstat/` (статистические функции из основной части, автор Нефедьева А. С.), тесты `tests/test_labfont.py` |
 
 <a id="toc"></a>
 **Содержание**
@@ -122,7 +122,7 @@ def build(df, r, sample_font: str | None, excluded=(), n_raw=None, n_user=0, n_r
     - [5.3 Литература](#res-lit)
     - [5.4 cat_mark_table](#res-marks)
 
-*Код в ячейках скрыт; раскрыть — щелчок по полоске слева от ячейки. Основная часть лабораторной (вина, трек «Инфохимия») — в общем репозитории команды.*
+*Код в ячейках скрыт; раскрыть — щелчок по полоске слева от ячейки.*
 """))
     cells.append(code(f"""
 import warnings
@@ -198,7 +198,7 @@ fonts.groupby("category")[["x_height", "stem", "contrast", "width_o"]].median().
 """))
     cells.append(code("""
 cols = ["x_height", "cap_height", "x_to_cap", "stem", "contrast", "width_o", "adv_mean"]
-plots.corr_heatmap(fonts[cols].rename(columns=fp.COL_RU).corr(method="spearman"), "fonts_corr.png");
+plots.corr_heatmap(fonts[cols].rename(columns=fp.COL_RU).corr(method="spearman"), "fonts_corr.png", title="Связи между измерениями шрифтов");
 """))
     cells.append(md('<a id="fig2"></a>\n*Рис. 2. Ранговые корреляции Спирмена $\\rho$ между измерениями шрифтов.*'))
 

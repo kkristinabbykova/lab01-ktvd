@@ -19,7 +19,7 @@ PUB = ROOT / "public"
 def main():
     PUB.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "labrng" / "generators.py", PUB / "generators.py")
-    shutil.copy(ROOT / "data" / "winequality-white.csv", PUB / "winequality-white.csv")
+    shutil.copy(ROOT / "data" / "fonts.csv", PUB / "fonts.csv")
     print("public/ обновлена")
     code = 0
     if shutil.which("marimo") is None:

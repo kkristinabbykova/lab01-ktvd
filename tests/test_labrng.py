@@ -51,27 +51,27 @@ def test_from_normal_matches_scipy(family, params):
 
 
 @pytest.fixture(scope="module")
-def ph():
+def sample():
     return stats.skewnorm.rvs(1.8, 3.04, 0.21, size=4898, random_state=1)
 
 
 @pytest.mark.parametrize("method", G.METHODS)
-def test_generate_like_data(method, ph):
-    x, info = G.generate(ph, 5000, method=method, family="skewnorm", seed=2026)
+def test_generate_like_data(method, sample):
+    x, info = G.generate(sample, 5000, method=method, family="skewnorm", seed=2026)
     assert x.size == 5000
-    assert stats.ks_2samp(x, ph).pvalue > 1e-3
-    assert abs(x.mean() - ph.mean()) < 0.01
+    assert stats.ks_2samp(x, sample).pvalue > 1e-3
+    assert abs(x.mean() - sample.mean()) < 0.01
     assert 0 < info["accept"] <= 1
 
 
-def test_neumann_acceptance(ph):
-    dens, edges = np.histogram(ph, bins=40, density=True)
-    _, acc = G.neumann(G.Uniform("pcg64", 1), ph, N)
+def test_neumann_acceptance(sample):
+    dens, edges = np.histogram(sample, bins=40, density=True)
+    _, acc = G.neumann(G.Uniform("pcg64", 1), sample, N)
     assert acc == pytest.approx(1 / (dens.max() * (edges[-1] - edges[0])), rel=0.05)
 
 
-def test_rounding_to_instrument_step(ph):
-    x, _ = G.generate(ph, 1000, step=0.01)
+def test_rounding_to_instrument_step(sample):
+    x, _ = G.generate(sample, 1000, step=0.01)
     assert np.allclose(np.round(x * 100), x * 100)
 
 
@@ -80,8 +80,8 @@ def test_quantile_is_inverse_of_ecdf():
     assert G.empirical_quantile(data, np.array([0.125, 0.375, 0.5])) == pytest.approx([1.0, 2.0, 2.5])
 
 
-def test_compare_same_data(ph):
-    r = G.compare(ph, ph)
+def test_compare_same_data(sample):
+    r = G.compare(sample, sample)
     assert r["ks_D"] == 0 and r["chi2_p"] > 0.99
     assert r["real"]["среднее"] == r["gen"]["среднее"]
 
