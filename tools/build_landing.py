@@ -162,12 +162,23 @@ select:not(.fancy){padding:.4rem .5rem;border:1px solid #c9cdc5;border-radius:6p
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1.4rem 2rem;margin:1.6rem 0;max-width:900px}
 .fact strong{display:block;font-size:2.4rem;line-height:1.05;font-weight:800;font-variant-numeric:tabular-nums}
 .fact span{color:var(--muted);font-size:.95rem}
+.zoombar{display:flex;gap:.4rem;align-items:center;margin:0 0 .4rem;flex-wrap:wrap}
+.zoombar button{font:inherit;font-size:.95rem;min-width:2.2rem;height:2.2rem;padding:0 .7rem;border-radius:6px;border:1px solid #d6d4cc;background:#fff;color:var(--ink);cursor:pointer}
+.zoombar button:hover{background:#f3f2ee}.zoombar button:focus-visible{outline:2px solid #2a78d6;outline-offset:2px}
+.zoombar .note{margin:0 0 0 .4rem}
+#scatter{user-select:none;-webkit-user-select:none}
+#zoomHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(26,29,36,.82);color:#fff;padding:.5rem .8rem;border-radius:6px;font-size:.9rem;pointer-events:none;opacity:0;transition:opacity .25s}
 #tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.85rem;
   padding:.3rem .55rem;border-radius:4px;opacity:0;transition:opacity .12s;white-space:nowrap}
 footer.wrap{padding-top:3rem;padding-bottom:4rem;border-top:1px solid var(--rule);color:var(--muted);font-size:.95rem}
 footer p{max-width:var(--measure)}
 
 .specimen{padding:1.2rem 1.4rem;overflow:hidden}
+.rho-demo{margin:0 0 2rem}
+.rho-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:820px}
+.rho-grid svg{width:100%;height:auto;display:block}
+#rhoPresets button[aria-pressed="true"]{background:#fff;font-weight:650;box-shadow:0 1px 3px rgba(26,29,36,.18)}
+@media (max-width:560px){.rho-grid{grid-template-columns:1fr}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .seg{display:inline-flex;flex-wrap:wrap;gap:2px;background:#e6e8e3;border-radius:999px;padding:3px}
 .seg button{background:transparent;color:var(--ink);font-weight:500;font-size:.92rem;padding:.42rem .95rem;border-radius:999px;transition:background .15s}
@@ -226,12 +237,32 @@ input[type=text]:hover{border-color:#9aa0a8}
     <div class="fact"><strong>__XH_SERIF__</strong><span>медианная x-height антикв: строчные ниже, критерий Манна–Уитни это подтверждает</span></div>
     <div class="fact"><strong>ρ = __RHO__</strong><span>связь x-height и толщины штриха: чем выше строчные, тем толще штрих</span></div>
   </div>
+  <div class="rho-demo">
+    <h3>Как читать ρ</h3>
+    <p class="note" style="max-width:var(--measure)">ρ Спирмена показывает, насколько согласованно растут две величины: 0 — связи нет,
+    1 — чем больше одна, тем больше другая, без исключений. Подвигай ползунок: слева облако из 100 случайных точек с выбранной
+    силой связи, справа — наши шрифты (ρ = __RHO__).</p>
+    <div class="controls" style="margin-top:.4rem">
+      <label style="min-width:16rem"><span>Сила связи ρ: <output id="rhoOut" class="val">0,40</output></span>
+        <input id="rho" type="range" min="-1" max="1" step="0.05" value="0.4" style="width:100%"></label>
+      <span class="seg" id="rhoPresets" role="group" aria-label="Готовые значения">
+        <button type="button" data-v="0">нет связи</button><button type="button" data-v="0.4">как у нас</button><button type="button" data-v="0.9">сильная</button></span>
+    </div>
+    <div class="rho-grid">
+      <div class="chart"><svg id="rhoSim" viewBox="0 0 300 240" role="img" aria-label="Облако точек с выбранной силой связи"></svg>
+        <p class="note" id="rhoSimNote" style="margin:.3rem 0 0"></p></div>
+      <div class="chart"><svg id="rhoReal" viewBox="0 0 300 240" role="img" aria-label="Наши шрифты в рангах"></svg>
+        <p class="note" style="margin:.3rem 0 0">Наши шрифты: место по x-height и место по толщине штриха (ранги, как у Спирмена).</p></div>
+    </div>
+  </div>
   <div class="chart" style="position:relative;max-width:820px">
+    <div class="zoombar"><button type="button" id="zIn" aria-label="Приблизить">+</button><button type="button" id="zOut" aria-label="Отдалить">−</button><button type="button" id="zReset">Весь график</button><span id="zoomInfo" class="note"></span></div>
     <svg id="scatter" viewBox="0 0 640 380" role="img" aria-label="Точечный график: x-height и толщина штриха по шрифтам"></svg>
+    <div id="zoomHint">Чтобы приблизить, держите Ctrl (⌘) и крутите колесо</div>
     <div id="tip" role="status"></div>
     <div class="legend" id="flegend"></div>
   </div>
-  <p class="note">Наведите на точку или выберите её клавишей Tab, чтобы увидеть название шрифта. Исследование: __L_FONTS__.</p>
+  <p class="note">Приближайте кнопками «+ / −», двойным щелчком по месту, Ctrl (⌘) + колесом или двумя пальцами на телефоне; приближенный график можно двигать мышью. Когда точек на экране немного, у них появляются названия шрифтов. Наведите на точку или выберите её клавишей Tab, чтобы увидеть подробности. Исследование: __L_FONTS__.</p>
 </section>
 
 <section class="wrap" id="play">
@@ -379,7 +410,7 @@ function polarPH(u, n) {
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 const E = D.wine.edges, H = D.wine.hist;
-const W = 640, Hh = 300, pad = {l: 44, r: 12, t: 12, b: 40};
+const W = 640, Hh = 300, pad = {l: 64, r: 12, t: 12, b: 40};   // слева место под числа оси и подпись
 const xs = v => pad.l + (v - E[0]) / (E[E.length - 1] - E[0]) * (W - pad.l - pad.r);
 const yMax = Math.max(...H) * 1.25;
 const ys = v => Hh - pad.b - v / yMax * (Hh - pad.t - pad.b);
@@ -388,9 +419,9 @@ function axes(s, xticks, yticks, xlab, ylab, X, Y, w, h, xd = 2, yd = 0) {
   xticks.forEach(t => { s.append(el("line", {x1: X(t), x2: X(t), y1: pad.t, y2: h - pad.b, stroke: "#e6e5e0"}));
     const tx = el("text", {x: X(t), y: h - pad.b + 18, "text-anchor": "middle", "font-size": 12, fill: "#5c6170"}); tx.textContent = nf(t, xd); s.append(tx); });
   yticks.forEach(t => { s.append(el("line", {x1: pad.l, x2: w - pad.r, y1: Y(t), y2: Y(t), stroke: "#e6e5e0"}));
-    const tx = el("text", {x: pad.l - 6, y: Y(t) + 4, "text-anchor": "end", "font-size": 12, fill: "#5c6170"}); tx.textContent = nf(t, yd); s.append(tx); });
+    const tx = el("text", {x: pad.l - 8, y: Y(t) + 4, "text-anchor": "end", "font-size": 12, fill: "#5c6170"}); tx.textContent = nf(t, yd); s.append(tx); });
   const xl = el("text", {x: (pad.l + w - pad.r) / 2, y: h - 6, "text-anchor": "middle", "font-size": 13, fill: "#1a1d24"}); xl.textContent = xlab; s.append(xl);
-  const yl = el("text", {x: 12, y: (pad.t + h - pad.b) / 2, "text-anchor": "middle", "font-size": 13, fill: "#1a1d24", transform: `rotate(-90 12 ${(pad.t + h - pad.b) / 2})`}); yl.textContent = ylab; s.append(yl);
+  const yl = el("text", {x: 14, y: (pad.t + h - pad.b) / 2, "text-anchor": "middle", "font-size": 13, fill: "#1a1d24", transform: `rotate(-90 14 ${(pad.t + h - pad.b) / 2})`}); yl.textContent = ylab; s.append(yl);
 }
 function drawHist(gen) {
   svg.replaceChildren();
@@ -462,7 +493,7 @@ document.getElementById("go").addEventListener("click", run);
 run();
 
 /* --- переключатели-«таблетки» вместо выпадающих списков с 2–3 вариантами --- */
-document.querySelectorAll(".seg").forEach(seg => {
+document.querySelectorAll(".seg[data-for]").forEach(seg => {
   const sel = document.getElementById(seg.dataset.for);
   const btns = [...sel.options].map(o => {
     const b = document.createElement("button");
@@ -559,26 +590,127 @@ async function renderCmp() {
 }
 renderCmp();
 
-/* --- точечный график шрифтов --- */
+/* --- как читать ρ: облако с заданной силой связи и наши шрифты в рангах --- */
+const rhoIn = document.getElementById("rho"), rhoOut = document.getElementById("rhoOut");
+const ranks = a => { const idx = a.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]); const r = new Array(a.length);
+  idx.forEach(([, i], k) => r[i] = k); return r; };
+const spear = (a, b) => { const ra = ranks(a), rb = ranks(b), n = a.length, m = (n - 1) / 2;
+  let sab = 0, saa = 0, sbb = 0; for (let i = 0; i < n; i++) { const x = ra[i] - m, y = rb[i] - m; sab += x * y; saa += x * x; sbb += y * y; }
+  return sab / Math.sqrt(saa * sbb); };
+let seedZ = 7; const rnd = () => (seedZ = (seedZ * 16807) % 2147483647) / 2147483647;   // фиксированный датчик: облако не прыгает
+const Z1 = [], Z2 = [];
+for (let i = 0; i < 50; i++) { const u1 = rnd(), u2 = rnd(), r = Math.sqrt(-2 * Math.log(u1));
+  Z1.push(r * Math.cos(2 * Math.PI * u2), r * Math.sin(2 * Math.PI * u2)); const v1 = rnd(), v2 = rnd(), q = Math.sqrt(-2 * Math.log(v1));
+  Z2.push(q * Math.cos(2 * Math.PI * v2), q * Math.sin(2 * Math.PI * v2)); }
+function dots(svg, xs, ys, color) {
+  svg.replaceChildren();
+  const n = xs.length, X = v => 20 + v / (n - 1) * 260, Y = v => 220 - v / (n - 1) * 200;
+  svg.append(el("rect", {x: 14, y: 14, width: 272, height: 212, fill: "none", stroke: "#e6e5e0"}));
+  const rx = ranks(xs), ry = ranks(ys);
+  for (let i = 0; i < n; i++) svg.append(el("circle", {cx: X(rx[i]), cy: Y(ry[i]), r: 3.4, fill: color, "fill-opacity": .8}));
+  const lx = el("text", {x: 150, y: 238, "text-anchor": "middle", "font-size": 11, fill: "#5c6170"}); lx.textContent = "x-height →"; svg.append(lx);
+  const ly = el("text", {x: 9, y: 120, "text-anchor": "middle", "font-size": 11, fill: "#5c6170", transform: "rotate(-90 9 120)"}); ly.textContent = "толщина штриха →"; svg.append(ly);
+}
+function updRho() {
+  const r = +rhoIn.value; rhoOut.textContent = nf(r, 2);
+  const ys = Z1.map((z, i) => r * z + Math.sqrt(1 - r * r) * Z2[i]);
+  dots(document.getElementById("rhoSim"), Z1, ys, "#9aa0a8");
+  document.getElementById("rhoSimNote").textContent = `Случайные точки: ρ Спирмена получилось ${nf(spear(Z1, ys), 2)}.`;
+  document.querySelectorAll("#rhoPresets button").forEach(b => b.setAttribute("aria-pressed", Math.abs(+b.dataset.v - r) < 1e-9));
+}
+rhoIn.addEventListener("input", updRho);
+document.querySelectorAll("#rhoPresets button").forEach(b => b.addEventListener("click", () => { rhoIn.value = b.dataset.v; updRho(); }));
+updRho();
+dots(document.getElementById("rhoReal"), D.fonts.pts.map(p => p.x), D.fonts.pts.map(p => p.s), "#2a78d6");
+
+/* --- точечный график шрифтов: приближение и сдвиг --- */
 const sc = document.getElementById("scatter"), tip = document.getElementById("tip");
 const P = D.fonts.pts, SW = 640, SH = 380;
-const xr = [Math.min(...P.map(p => p.x)) - .01, Math.max(...P.map(p => p.x)) + .01];
-const sr = [0, Math.max(...P.map(p => p.s)) * 1.08];
-const X = v => pad.l + (v - xr[0]) / (xr[1] - xr[0]) * (SW - pad.l - pad.r);
-const Y = v => SH - pad.b - (v - sr[0]) / (sr[1] - sr[0]) * (SH - pad.t - pad.b);
-axes(sc, [0.40, 0.45, 0.50, 0.55].filter(t => t > xr[0] && t < xr[1]), [0, 0.1, 0.2, 0.3].filter(t => t < sr[1]),
-     "x-height, доли кегля", "толщина штриха, доли кегля", X, Y, SW, SH, 2, 2);
-P.forEach(p => {
-  const c = el("circle", {cx: X(p.x), cy: Y(p.s), r: 6, fill: (CAT[p.c] || ["", "#999"])[1], "fill-opacity": .85,
-    stroke: "#fff", "stroke-width": 1.2, tabindex: 0, "aria-label": `${p.f}: x-height ${nf(p.x)}, штрих ${nf(p.s)}`});
-  const show = () => { tip.textContent = `${p.f}: x-height ${nf(p.x)}, штрих ${nf(p.s)}`;
-    const b = sc.getBoundingClientRect(), k = b.width / SW;
-    tip.style.left = `${X(p.x) * k + 12}px`; tip.style.top = `${Y(p.s) * k - 10}px`; tip.style.opacity = 1; };
-  const hide = () => { tip.style.opacity = 0; };
-  c.addEventListener("mouseenter", show); c.addEventListener("focus", show);
-  c.addEventListener("mouseleave", hide); c.addEventListener("blur", hide);
-  sc.append(c);
+const FULL = {x: [Math.min(...P.map(p => p.x)) - .01, Math.max(...P.map(p => p.x)) + .01],
+              y: [0, Math.max(...P.map(p => p.s)) * 1.08]};
+let V = {x: [...FULL.x], y: [...FULL.y]};
+const X = v => pad.l + (v - V.x[0]) / (V.x[1] - V.x[0]) * (SW - pad.l - pad.r);
+const Y = v => SH - pad.b - (v - V.y[0]) / (V.y[1] - V.y[0]) * (SH - pad.t - pad.b);
+const invX = px => V.x[0] + (px - pad.l) / (SW - pad.l - pad.r) * (V.x[1] - V.x[0]);
+const invY = py => V.y[0] + (SH - pad.b - py) / (SH - pad.t - pad.b) * (V.y[1] - V.y[0]);
+function niceTicks(a, b, n = 5) {               // «круглые» деления: шаг 1, 2 или 5 × 10^k
+  const raw = (b - a) / n, p = 10 ** Math.floor(Math.log10(raw)), m = raw / p;
+  const st = (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p, out = [];
+  for (let t = Math.ceil(a / st) * st; t <= b + 1e-12; t += st) out.push(+t.toFixed(10));
+  return [out, Math.max(0, -Math.floor(Math.log10(st) + 1e-9))];
+}
+const zoomK = () => (FULL.x[1] - FULL.x[0]) / (V.x[1] - V.x[0]);
+function clampView() {                          // не уводим график за пределы данных
+  ["x", "y"].forEach(a => { const w = Math.min(V[a][1] - V[a][0], FULL[a][1] - FULL[a][0]);
+    let lo = Math.max(FULL[a][0], Math.min(V[a][0], FULL[a][1] - w)); V[a] = [lo, lo + w]; });
+}
+function zoomAt(f, px = (pad.l + SW - pad.r) / 2, py = (pad.t + SH - pad.b) / 2) {
+  const cx = invX(px), cy = invY(py), minW = (FULL.x[1] - FULL.x[0]) / 40, minH = (FULL.y[1] - FULL.y[0]) / 40;
+  const w = Math.max(minW, (V.x[1] - V.x[0]) / f), h = Math.max(minH, (V.y[1] - V.y[0]) / f);
+  const fx = (cx - V.x[0]) / (V.x[1] - V.x[0]), fy = (cy - V.y[0]) / (V.y[1] - V.y[0]);
+  V = {x: [cx - fx * w, cx - fx * w + w], y: [cy - fy * h, cy - fy * h + h]}; clampView(); drawScatter();
+}
+function drawScatter() {
+  sc.replaceChildren(); tip.style.opacity = 0;
+  const [xt, xd] = niceTicks(V.x[0], V.x[1]), [yt, yd] = niceTicks(V.y[0], V.y[1]);
+  axes(sc, xt.filter(t => t > V.x[0] && t < V.x[1]), yt.filter(t => t >= V.y[0] && t < V.y[1]),
+       "x-height, доли кегля", "толщина штриха, доли кегля", X, Y, SW, SH, Math.max(2, xd), Math.max(2, yd));
+  const defs = document.createElementNS(NS, "defs"), cp = document.createElementNS(NS, "clipPath");
+  cp.id = "scClip"; cp.append(el("rect", {x: pad.l, y: pad.t, width: SW - pad.l - pad.r, height: SH - pad.t - pad.b}));
+  defs.append(cp); sc.append(defs);
+  const g = document.createElementNS(NS, "g"); g.setAttribute("clip-path", "url(#scClip)"); sc.append(g);
+  const k = zoomK(), r = Math.min(10, 6 * Math.sqrt(Math.sqrt(k)));
+  const vis = P.filter(p => p.x >= V.x[0] && p.x <= V.x[1] && p.s >= V.y[0] && p.s <= V.y[1]);
+  vis.forEach(p => {
+    const c = el("circle", {cx: X(p.x), cy: Y(p.s), r, fill: (CAT[p.c] || ["", "#999"])[1], "fill-opacity": .85,
+      stroke: "#fff", "stroke-width": 1.2, tabindex: 0, "aria-label": `${p.f}: x-height ${nf(p.x)}, штрих ${nf(p.s)}`});
+    const show = () => { tip.textContent = `${p.f}: x-height ${nf(p.x)}, штрих ${nf(p.s)}`;
+      const b = sc.getBoundingClientRect(), kk = b.width / SW;
+      tip.style.left = `${X(p.x) * kk + 12}px`; tip.style.top = `${Y(p.s) * kk - 10}px`; tip.style.opacity = 1; };
+    const hide = () => { tip.style.opacity = 0; };
+    c.addEventListener("mouseenter", show); c.addEventListener("focus", show);
+    c.addEventListener("mouseleave", hide); c.addEventListener("blur", hide);
+    g.append(c);
+  });
+  const boxes = [];                                         // приблизили — подписываем шрифты, без наложений
+  if (k > 1.5 && vis.length <= 30) [...vis].sort((a, b) => b.s - a.s).forEach(p => {
+    const t = el("text", {x: X(p.x) + r + 3, y: Y(p.s) + 4, "font-size": 11, fill: "#1a1d24", "pointer-events": "none",
+      stroke: "#fff", "stroke-width": 3, "paint-order": "stroke"}); t.textContent = p.f; g.append(t);
+    const bb = t.getBBox(), hit = boxes.some(o => bb.x < o.x + o.width + 2 && o.x < bb.x + bb.width + 2 && bb.y < o.y + o.height && o.y < bb.y + bb.height);
+    if (hit || bb.x + bb.width > SW - pad.r) t.remove(); else boxes.push(bb); });
+  document.getElementById("zoomInfo").textContent = k > 1.02
+    ? `×${nf(k, 1)} · видно точек: ${vis.length} из ${P.length}` : `весь график · ${P.length} точек`;
+  sc.style.cursor = k > 1.02 ? "grab" : "zoom-in";
+  sc.style.touchAction = k > 1.02 ? "none" : "pan-y";
+}
+/* мышь: Ctrl/⌘ + колесо, двойной щелчок; перетаскивание; два пальца — щипок */
+const svgPt = e => { const b = sc.getBoundingClientRect(); return [(e.clientX - b.left) * SW / b.width, (e.clientY - b.top) * SW / b.width]; };
+const hint = document.getElementById("zoomHint"); let hintT;
+sc.addEventListener("wheel", e => {
+  if (!(e.ctrlKey || e.metaKey)) { hint.style.opacity = 1; clearTimeout(hintT); hintT = setTimeout(() => hint.style.opacity = 0, 1200); return; }
+  e.preventDefault(); const [x, y] = svgPt(e); zoomAt(Math.exp(-e.deltaY * 0.002), x, y);
+}, {passive: false});
+sc.addEventListener("dblclick", e => { const [x, y] = svgPt(e); zoomAt(e.shiftKey ? 1 / 2 : 2, x, y); });
+const ptrs = new Map(); let pinch0 = null;
+sc.addEventListener("pointerdown", e => { ptrs.set(e.pointerId, svgPt(e));
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  if (zoomK() > 1.02 || ptrs.size === 2) { sc.setPointerCapture(e.pointerId); sc.style.cursor = "grabbing"; } });
+sc.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return; const prev = ptrs.get(e.pointerId), cur = svgPt(e); ptrs.set(e.pointerId, cur);
+  if (ptrs.size === 2 && pinch0) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    zoomAt(d / pinch0, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); pinch0 = d; return; }
+  if (zoomK() <= 1.02) return;
+  const dx = invX(prev[0]) - invX(cur[0]), dy = invY(prev[1]) - invY(cur[1]);
+  V.x = V.x.map(v => v + dx); V.y = V.y.map(v => v + dy); clampView(); drawScatter();
 });
+const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = null; sc.style.cursor = zoomK() > 1.02 ? "grab" : "zoom-in"; };
+sc.addEventListener("pointerup", up); sc.addEventListener("pointercancel", up);
+const med = a => { const b = [...a].sort((u, v) => u - v); return b[b.length >> 1]; };
+const MX = med(P.map(p => p.x)), MY = med(P.map(p => p.s));   // с полного вида приближаем к «гуще» точек
+document.getElementById("zIn").addEventListener("click", () => zoomK() > 1.02 ? zoomAt(1.6) : zoomAt(1.6, X(MX), Y(MY)));
+document.getElementById("zOut").addEventListener("click", () => zoomAt(1 / 1.6));
+document.getElementById("zReset").addEventListener("click", () => { V = {x: [...FULL.x], y: [...FULL.y]}; drawScatter(); });
+drawScatter();
 const present = [...new Set(P.map(p => p.c))];
 document.getElementById("flegend").innerHTML = Object.entries(CAT).filter(([k]) => present.includes(k))
   .map(([k, [name, col]]) => `<span><i class="sw" style="background:${col}"></i>${name} (${P.filter(p => p.c === k).length})</span>`).join("");
