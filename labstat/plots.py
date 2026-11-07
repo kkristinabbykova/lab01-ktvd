@@ -67,8 +67,10 @@ def eda_panel(x, label: str, unit: str, fits: dict, fname: str, bins=None):
     fig, ax = plt.subplots(1, 3, figsize=(13, 3.6), gridspec_kw={"width_ratios": [2.2, 1, 1.4]})
     ax[0].hist(x, bins=bins, density=True, color=C1, alpha=0.35, edgecolor="white", linewidth=0.5, label="данные")
     grid = np.linspace(x.min(), x.max(), 400)
-    for (name, params), col in zip(fits.items(), [C1, C2, C3]):
-        ax[0].plot(grid, getattr(stats, name).pdf(grid, *params), color=col, label=DIST_RU.get(name, name))
+    # разные линии, а не только цвет: близкие модели иначе сливаются в одну кривую
+    for (name, params), col, ls, lw in zip(fits.items(), [C1, C2, C3], ["-", "-", (0, (5, 3))], [1.6, 2.6, 1.8]):
+        ax[0].plot(grid, getattr(stats, name).pdf(grid, *params), color=col, linestyle=ls, linewidth=lw,
+                   label=DIST_RU.get(name, name))
     ax[0].set(xlabel=f"{label}, {unit}", ylabel="плотность", title=f"{label}: гистограмма и модели")
     ax[0].legend()
     ax[1].boxplot(x, vert=True, widths=0.5, patch_artist=True,
