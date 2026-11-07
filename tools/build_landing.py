@@ -36,7 +36,10 @@ def wine_block():
         v = w[col]
         rows.append({"name": nm, "unit": unit, "mean": round(v.mean(), 3), "sd": round(v.std(), 3),
                      "skew": round(float(stats.skew(v)), 2)})
-    return {"q": [round(float(v), 4) for v in q], "edges": [round(float(e), 3) for e in edges],
+    grid = np.round(np.arange(2.50, 4.21, 0.01), 2)          # сетка шага прибора 0.01
+    fdat = np.searchsorted(np.round(x, 2), grid + 1e-9, side="right") / x.size
+    return {"grid": [float(g) for g in grid], "fdat": [round(float(v), 6) for v in fdat],
+            "q": [round(float(v), 4) for v in q], "edges": [round(float(e), 3) for e in edges],
             "hist": [round(float(v), 4) for v in h], "n": int(x.size), "rows": rows}
 
 
@@ -68,7 +71,7 @@ def main():
               '<code>python tools/build_site.py</code>.</span>')
     html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False)) \
         .replace("__MARIMO__", marimo) \
-        .replace("__L_NB__", f'<a href="{MAIN}">общий репозиторий команды</a>' if MAIN else "общий репозиторий команды") \
+        .replace("__L_NB__", f' (<a href="{MAIN}">репозиторий</a>)' if MAIN else "") \
         .replace("__L_FONTS__", link("fonts.ipynb", "fonts.ipynb")) \
         .replace("__L_DATCHIK__", link("datchik.py", "datchik.py")) \
         .replace("__N_FONTS__", str(data["fonts"]["n"])) \
@@ -163,73 +166,18 @@ footer p{max-width:var(--measure)}
 </head>
 <body>
 <header class="wrap">
-  <h1 id="title" aria-label="Случайность в бокале и в букве"><span class="w">Случайность</span><span class="w">в бокале</span><span class="w">и в букве</span></h1>
-  <p class="lede text">Лабораторная работа по прикладной статистике: три величины из химии белых вин,
-  две величины из пропорций шрифтов и датчик случайных чисел, который их воспроизводит.
-  Толщина каждой буквы в заголовке — случайная величина: она взята из измеренной толщины штриха шрифтов из нашего датасета.</p>
+  <h1 id="title" aria-label="Случайность в букве и в бокале"><span class="w">Случайность</span><span class="w">в букве</span><span class="w">и в бокале</span></h1>
+  <p class="lede text">Доп. задание КТвД к лабораторной по прикладной статистике: собственный датасет шрифтов
+  с двумя случайными величинами и интерактивный датчик случайных чисел.
+  Толщина каждой буквы в заголовке — случайная величина: она взята из измеренной толщины штриха шрифтов из датасета.</p>
   <button id="reroll" type="button">Перебросить толщину букв</button>
-  <div class="strip" role="img" aria-label="Шкала pH от кислого к щелочному"></div>
-  <div class="strip-caption"><span>кислее</span><span>pH белого вина: от 2,72 до 3,82</span><span>щелочнее</span></div>
 </header>
 
 <main>
-<section class="wrap" id="wine">
-  <h2>Вино: три измерения, ни одно не вычисляется формулой</h2>
-  <div class="text">
-  <p>4898 образцов белого вина Vinho Verde (Cortez и др., 2009). У каждого лаборатория измерила 11 показателей.
-  Мы взяли три: pH, фиксированную кислотность и содержание спирта. Даже по десяти остальным измерениям их нельзя
-  предсказать точно: остаток модели во много раз больше шага прибора. Значит, это случайные величины.</p>
-  </div>
-  <div class="scroll" role="region" aria-label="Таблица величин" tabindex="0"><table>
-    <thead><tr><th>Величина</th><th class="num">Среднее</th><th class="num">СКО</th><th class="num">Асимметрия</th><th>Единицы</th></tr></thead>
-    <tbody id="wine-rows"></tbody>
-  </table></div>
-  <figure>
-    <img src="img/rv01_rv02_dependence.png" alt="Тепловая карта: чем выше фиксированная кислотность, тем ниже pH" loading="lazy">
-    <figcaption>pH и фиксированная кислотность одной природы, и они зависимы: ρ Спирмена −0,42, χ² и перестановочный тест отвергают независимость.</figcaption>
-  </figure>
-  <p class="note">Исследование вин — работа Нефедьевой Антонины (трек «Инфохимия»), лежит в: __L_NB__.</p>
-</section>
-
-<section class="wrap" id="rng">
-  <h2>Датчик: случайное число, похожее на pH</h2>
-  <div class="text">
-  <p>Датчик берёт равномерное число <i>U</i> от 0 до 1 и превращает его в pH через обратную функцию распределения:
-  <i>X</i> = <i>F</i><sup>−1</sup>(<i>U</i>). Здесь <i>F</i> — эмпирическая функция распределения 4898 вин.
-  Если базовый датчик хороший, гистограмма сгенерированных чисел ложится на гистограмму данных.</p>
-  </div>
-  <div class="controls">
-    <label>Базовый датчик
-      <select id="base">
-        <option value="math">Math.random (xorshift128+)</option>
-        <option value="mmix">ЛКГ, константы MMIX (Кнут)</option>
-        <option value="randu">RANDU, IBM 1960-х</option>
-      </select>
-    </label>
-    <label>Сколько чисел: <output id="nout">4900</output>
-      <input id="n" type="range" min="100" max="20000" step="100" value="4900">
-    </label>
-    <button id="go" type="button">Сгенерировать заново</button>
-  </div>
-  <div class="lab">
-    <div class="chart">
-      <svg id="hist" viewBox="0 0 640 300" role="img" aria-label="Гистограмма pH: данные и датчик"></svg>
-      <div class="legend"><span><i class="sw" style="background:#bcd6f3"></i>данные, 4898 вин</span><span><i class="sw" style="background:var(--orange)"></i>датчик</span></div>
-    </div>
-    <div>
-      <div class="chart"><canvas id="trip" width="520" height="520" aria-label="Тройки чисел базового датчика"></canvas></div>
-      <p class="note" style="margin-top:.5rem">Тройки чисел базового датчика в проекции (6<i>u</i><sub>k+1</sub> − 9<i>u</i><sub>k</sub>) mod 1 по горизонтали и <i>u</i><sub>k+2</sub> по вертикали. У RANDU все точки ложатся на прямую: это его известный дефект.</p>
-    </div>
-  </div>
-  <p class="readout" id="readout"></p>
-  <p>__MARIMO__</p>
-  <p class="note">В полной версии шесть методов (обратная функция, Бокс–Мюллер, полярный, метод отношений, метод Неймана, квантильный) для всех трёх величин и таблица сравнения: __L_DATCHIK__.</p>
-</section>
-
 <section class="wrap" id="fonts">
   <h2>Шрифты: высота строчных и толщина штриха</h2>
   <div class="text">
-  <p>Второй датасет мы собрали сами: шрифтовые семейства из Google Fonts (сейчас их __N_FONTS__), у каждого измерено начертание Regular
+  <p>Датасет собран самостоятельно: шрифтовые семейства из Google Fonts (сейчас их __N_FONTS__), у каждого измерено начертание Regular
   прямо по контурам букв. Все размеры даны в долях кегля, то есть не зависят от размера, которым набран текст.</p>
   </div>
   <figure class="wide">
@@ -248,11 +196,54 @@ footer p{max-width:var(--measure)}
   </div>
   <p class="note">Наведите на точку или выберите её клавишей Tab, чтобы увидеть название шрифта. Исследование: __L_FONTS__.</p>
 </section>
+
+<section class="wrap" id="rng">
+  <h2>Датчик: случайное число, похожее на pH</h2>
+  <div class="text">
+  <p>Это датчик из спринта 2. pH белого вина описан логнормальным распределением со сдвигом:
+  <i>X</i> = θ + e<sup>μ + σ<i>Z</i></sup>, где <i>Z</i> — стандартное нормальное число. Нормальные числа получаются
+  полярным методом Марсальи: точка бросается в квадрат, и остаются только точки внутри круга.
+  Для сравнения можно включить квантильное преобразование по самим данным.</p>
+  </div>
+  <div class="controls">
+    <label>Метод
+      <select id="method">
+        <option value="polar">Полярный метод (спринт 2)</option>
+        <option value="quantile">Квантильное преобразование</option>
+      </select>
+    </label>
+    <label>Базовый датчик
+      <select id="base">
+        <option value="math">Math.random (xorshift128+)</option>
+        <option value="mmix">ЛКГ, константы MMIX (Кнут)</option>
+        <option value="randu">RANDU, IBM 1960-х</option>
+      </select>
+    </label>
+    <label>Сколько чисел: <output id="nout">4900</output>
+      <input id="n" type="range" min="100" max="20000" step="100" value="4900">
+    </label>
+    <button id="go" type="button">Сгенерировать заново</button>
+  </div>
+  <div class="lab">
+    <div class="chart">
+      <svg id="hist" viewBox="0 0 640 300" role="img" aria-label="Гистограмма pH: данные и датчик"></svg>
+      <div class="legend"><span><i class="sw" style="background:#bcd6f3"></i>данные, 4898 вин</span><span><i class="sw" style="background:var(--orange)"></i>датчик (округлён до 0,01, как прибор)</span></div>
+    </div>
+    <div>
+      <div class="chart"><canvas id="trip" width="520" height="520" aria-label="Точки базового датчика"></canvas></div>
+      <p class="note" style="margin-top:.5rem" id="tripnote"></p>
+    </div>
+  </div>
+  <p class="readout" id="readout"></p>
+  <p>__MARIMO__</p>
+  <p class="note">Данные о винах взяты из общей работы команды__L_NB__. В полной версии на marimo шесть методов для трёх величин вина и таблица сравнения: __L_DATCHIK__.</p>
+</section>
 </main>
 
 <footer class="wrap">
-  <p>Lab01, прикладная статистика, осень 2026. Нефедьева Антонина Сергеевна (Инфохимия): исследование вин.
-  Быкова Кристина Денисовна (КТвД, группа 27): оформление, датасет шрифтов, интерактивный датчик, этот сайт.</p>
+  <p>Быкова Кристина Денисовна, ИСУ 501322, группа 27, трек КТвД. Lab01, прикладная статистика, осень 2026:
+  датасет шрифтов, датчик pH (спринт 2), интерактив и этот сайт. Данные о винах — общая работа команды
+  с Нефедьевой Антониной Сергеевной (трек «Инфохимия»).</p>
   <p>Данные: Wine Quality, UCI ML Repository, DOI 10.24432/C56S3T; шрифты: Google Fonts (SIL OFL).</p>
 </footer>
 
@@ -280,10 +271,6 @@ function reroll() {
 document.getElementById("reroll").addEventListener("click", reroll);
 reroll();
 
-/* --- таблица вин --- */
-document.getElementById("wine-rows").innerHTML = D.wine.rows.map(r =>
-  `<tr><td>${r.name}</td><td class="num">${nf(r.mean)}</td><td class="num">${nf(r.sd)}</td><td class="num">${nf(r.skew, 2)}</td><td>${r.unit}</td></tr>`).join("");
-
 /* --- базовые датчики --- */
 function makeBase(kind, seed = 2026) {
   if (kind === "randu") { let x = (seed | 1) >>> 0; return () => (x = Number((65539n * BigInt(x)) % 2147483648n)) / 2147483648; }
@@ -297,6 +284,23 @@ const Q = D.wine.q;
 function quantile(u) {           // эмпирическая F^-1 с линейной интерполяцией
   const t = u * (Q.length - 1), i = Math.min(Math.floor(t), Q.length - 2);
   return Q[i] + (t - i) * (Q[i + 1] - Q[i]);
+}
+
+/* --- полярный метод Марсальи (спринт 2): pH = theta + exp(mu + sigma*Z) --- */
+const TH = 2.0877, MU = Math.log(1.0904), SG = 0.1363;
+function polarPH(u, n) {
+  const out = []; let tried = 0, acc = 0; const pts = [];
+  while (out.length < n) {
+    const v1 = 2 * u() - 1, v2 = 2 * u() - 1, s = v1 * v1 + v2 * v2;
+    tried++;
+    if (pts.length < 1500) pts.push([v1, v2, s > 0 && s < 1]);
+    if (s > 0 && s < 1) {
+      acc++;
+      const f = Math.sqrt(-2 * Math.log(s) / s);
+      out.push(TH + Math.exp(MU + SG * v1 * f), TH + Math.exp(MU + SG * v2 * f));
+    }
+  }
+  return {x: out.slice(0, n), acc: acc / tried, pts};
 }
 
 /* --- гистограмма --- */
@@ -329,6 +333,14 @@ function drawHist(gen) {
 
 /* --- тройки --- */
 const cv = document.getElementById("trip"), ctx = cv.getContext("2d");
+function drawPolar(pts) {
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const S = cv.width - 40, cx = 20 + S / 2, cy = 20 + S / 2;
+  ctx.strokeStyle = "#e6e5e0"; ctx.strokeRect(20.5, 20.5, S, S);
+  ctx.strokeStyle = "#5c6170"; ctx.beginPath(); ctx.arc(cx, cy, S / 2, 0, 2 * Math.PI); ctx.stroke();
+  pts.forEach(([a, b, ok]) => { ctx.fillStyle = ok ? "#2a78d6" : "#eb6834";
+    ctx.fillRect(cx + a * S / 2 - 1.2, cy - b * S / 2 - 1.2, 2.6, 2.6); });
+}
 function drawTriples(kind) {
   const u = makeBase(kind, 7), n = 3000, a = [];
   for (let i = 0; i < n + 2; i++) a.push(u());
@@ -343,23 +355,37 @@ function drawTriples(kind) {
 
 /* --- запуск --- */
 const nIn = document.getElementById("n"), nOut = document.getElementById("nout"), baseIn = document.getElementById("base");
+const methodIn = document.getElementById("method"), tripNote = document.getElementById("tripnote");
 function run() {
   const n = +nIn.value, u = makeBase(baseIn.value, 2026 + Math.floor(Math.random() * 1e6));
-  const gen = Array.from({length: n}, () => Math.round(quantile(u()) * 100) / 100);  // шаг прибора 0,01
+  let gen, accTxt = "";
+  if (methodIn.value === "polar") {
+    const r = polarPH(u, n);
+    gen = r.x.map(v => Math.round(v * 100) / 100);   // шаг прибора 0,01
+    drawPolar(r.pts);
+    tripNote.innerHTML = "Полярный метод: синие точки внутри круга приняты, оранжевые в углах отброшены.";
+    accTxt = ` Доля принятых точек <b>${nf(r.acc)}</b> (теория π/4 = 0,785).`;
+  } else {
+    gen = Array.from({length: n}, () => Math.round(quantile(u()) * 100) / 100);
+    drawTriples(baseIn.value);
+    tripNote.innerHTML = "Тройки чисел базового датчика в проекции (6<i>u</i><sub>k+1</sub> − 9<i>u</i><sub>k</sub>) mod 1 по горизонтали и <i>u</i><sub>k+2</sub> по вертикали. У RANDU все точки ложатся на прямую: это его известный дефект.";
+  }
   drawHist(gen);
-  drawTriples(baseIn.value);
   const m = gen.reduce((s, v) => s + v, 0) / n, sd = Math.sqrt(gen.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1));
   const sorted = gen.slice().sort((p, q) => p - q);
-  let D_ = 0;   // приближённый D Колмогорова по 201 квантилю данных
-  Q.forEach((q, i) => { let lo = 0, hi = n; while (lo < hi) { const mid = (lo + hi) >> 1; sorted[mid] <= q ? lo = mid + 1 : hi = mid; }
-    D_ = Math.max(D_, Math.abs(lo / n - i / (Q.length - 1))); });
+  const N0 = D.wine.n, crit = 1.358 * Math.sqrt((n + N0) / (n * N0));   // критическое значение КС, alpha = 0.05
+  let D_ = 0;   // D Колмогорова: обе ЭФР на сетке шага прибора 0,01 (значения датчика округлены до 0,01)
+  D.wine.grid.forEach((g, i) => { let lo = 0, hi = n; while (lo < hi) { const mid = (lo + hi) >> 1; sorted[mid] <= g + 1e-9 ? lo = mid + 1 : hi = mid; }
+    D_ = Math.max(D_, Math.abs(lo / n - D.wine.fdat[i])); });
   document.getElementById("readout").innerHTML =
     `Датчик: среднее <b>${nf(m)}</b>, СКО <b>${nf(sd)}</b>; данные: среднее <b>3,188</b>, СКО <b>0,151</b>. ` +
-    `Расстояние Колмогорова между функциями распределения <b>${nf(D_)}</b>.`;
+    `Расстояние Колмогорова между функциями распределения <b>${nf(D_)}</b> при пороге <b>${nf(crit)}</b> (α = 0,05): ` +
+    (D_ < crit ? "датчик и данные статистически не различаются." : "различие значимо.") + accTxt;
 }
 nIn.addEventListener("input", () => { nOut.textContent = nIn.value; });
 nIn.addEventListener("change", run);
 baseIn.addEventListener("change", run);
+methodIn.addEventListener("change", run);
 document.getElementById("go").addEventListener("click", run);
 run();
 
