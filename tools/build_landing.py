@@ -88,7 +88,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lab01 · случайность в бокале и в букве</title>
+<title>Lab01 КТвД: случайность в букве</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap" rel="stylesheet">
@@ -109,7 +109,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;bac
 .text{max-width:var(--measure)}
 
 /* --- hero: толщина каждой буквы — случайная величина --- */
-header{padding:clamp(3rem,9vw,7rem) 0 2.5rem}
+header.wrap{padding-top:clamp(3rem,9vw,7rem);padding-bottom:clamp(3.5rem,7vw,5.5rem)}
 h1{font-size:clamp(2.9rem,9.2vw,7.4rem);line-height:.98;letter-spacing:-.02em;margin:0 0 1.6rem;font-weight:400}
 h1 .w{display:block}
 h1 span.l{transition:font-weight .5s cubic-bezier(.2,.7,.2,1)}
@@ -123,7 +123,7 @@ button:hover,.button:hover{background:#353a46}
 .note{color:var(--muted);font-size:.95rem}
 
 /* --- секции --- */
-section{padding:3.5rem 0;border-top:1px solid var(--rule)}
+section.wrap{padding-top:3.5rem;padding-bottom:3.5rem;border-top:1px solid var(--rule)}
 h2{font-size:clamp(1.7rem,3.4vw,2.6rem);line-height:1.1;font-weight:750;letter-spacing:-.01em;margin:0 0 1rem}
 h3{font-size:1.15rem;font-weight:650;margin:2rem 0 .5rem}
 p{margin:0 0 1rem}
@@ -157,7 +157,7 @@ select{padding:.4rem .5rem;border:1px solid #c9cdc5;border-radius:6px;background
 .fact span{color:var(--muted);font-size:.95rem}
 #tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.85rem;
   padding:.3rem .55rem;border-radius:4px;opacity:0;transition:opacity .12s;white-space:nowrap}
-footer{padding:3rem 0 4rem;border-top:1px solid var(--rule);color:var(--muted);font-size:.95rem}
+footer.wrap{padding-top:3rem;padding-bottom:4rem;border-top:1px solid var(--rule);color:var(--muted);font-size:.95rem}
 footer p{max-width:var(--measure)}
 
 @media (max-width:760px){.lab{grid-template-columns:1fr} th,td{padding-right:.6rem;font-size:.95rem}}
@@ -166,7 +166,7 @@ footer p{max-width:var(--measure)}
 </head>
 <body>
 <header class="wrap">
-  <h1 id="title" aria-label="Случайность в букве и в бокале"><span class="w">Случайность</span><span class="w">в букве</span><span class="w">и в бокале</span></h1>
+  <h1 id="title" aria-label="Случайность в букве"><span class="w">Случайность</span><span class="w">в букве</span></h1>
   <p class="lede text">Доп. задание КТвД к лабораторной по прикладной статистике: собственный датасет шрифтов
   с двумя случайными величинами и интерактивный датчик случайных чисел.
   Толщина каждой буквы в заголовке — случайная величина: она взята из измеренной толщины штриха шрифтов из датасета.</p>
