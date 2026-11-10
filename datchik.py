@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["marimo", "numpy", "pandas", "matplotlib", "scipy"]
+# ///
 import marimo
 
 __generated_with = "0.16.0"
@@ -39,6 +43,8 @@ def _(mo):
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
+    import scipy                 # нужен коду датчиков; явный импорт, чтобы marimo установил scipy в браузере
+    from scipy import stats as _stats   # noqa: F401
 
     def read_text(p):
         """Файл рядом с ноутбуком: локально это путь, в браузере (WASM) это URL."""
@@ -51,8 +57,12 @@ def _(mo):
     _pub = mo.notebook_location() / "public"
     # Код датчиков: копия labrng/generators.py (tools/build_site.py держит её в актуальном виде)
     G = types.ModuleType("generators")
-    exec(read_text(_pub / "generators.py"), G.__dict__)
-    fonts = pd.read_csv(io.StringIO(read_text(_pub / "fonts.csv")))
+    try:
+        exec(read_text(_pub / "generators.py"), G.__dict__)
+        fonts = pd.read_csv(io.StringIO(read_text(_pub / "fonts.csv")))
+    except Exception as _e:   # покажем ошибку на странице, а не пустое место
+        mo.output.replace(mo.callout(mo.md(f"**Датчик не загрузился:** `{type(_e).__name__}: {_e}`"), kind="danger"))
+        raise
     fonts = fonts[~fonts["no_lowercase"].astype(str).eq("True")]   # без шрифтов без строчных, как в ноутбуке
 
     # величина: (столбец, единица, модель по умолчанию — лучшая по AIC среди доступных)
